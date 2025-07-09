@@ -14,4 +14,6 @@ import com.platform.profileservice.entity.VehicleDetails;
 public interface VehicleDetailsRepository extends JpaRepository<VehicleDetails, Integer> {
 
 	List<VehicleDetails> findByCustomerId(Integer customerId);
+
+	List<VehicleDetails> findByCustomerMobileNumber(String userId);
 }

@@ -1,20 +1,16 @@
 package com.platform.profileservice.entity;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.OneToOne;
-import javax.persistence.Table;
+import javax.persistence.*;
 
+import com.platform.profileservice.util.PolicyTypeEnum;
+import com.platform.profileservice.util.VehicleTypeCategoryEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "vehicle_details")
@@ -29,53 +25,74 @@ public class VehicleDetails {
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	@Column(name = "id")
 	private Integer id;
-	
-	@Column(name = "vin")
-	private String vin;
-	
+	@Column(name = "brand")
+	private String brand;
+
+	@Column(name = "model")
+    private String model;
+
 	@Column(name = "year")
 	private String year;
-	
-	@Column(name = "name")
-	private String name;
-	
-	@Column(name = "odometer")
-	private String odometer;
-	
-	@Column(name = "color")
-	private String color;
-	
-	@Column(name = "engine_size")
-	private String engineSize;
-	
-	@Column(name = "no_of_doors")
-	private String noOfDoors;
-	
-	@Column(name = "no_of_seats")
-	private String noOfSeats;
-	
-	@Column(name = "no_of_cylinders")
-	private String noOfCylinders;
-	
-	@Column(name = "no_of_speeds")
-	private String noOfSpeeds;
-	
-	@Column(name = "fuel_type")
-	private String fuelType;
-	
-	@Column(name = "model_id")
-	private Integer modelId;
-	
-	@Column(name = "customer_id")
-	private Integer customerId;
-	
+
+	@Column(name = "engine_type")
+    private String engineType;
+
+	@Column(name = "chassis_no")
+	private String chassisNo;
+
+	@Column(name = "origin")
+    private String origin;
+
+	@Column(name = "no_of_passenger")
+	private String numOfPassenger;
+
+	@Column(name = "vehicle_type")
+    private String vehicleType;
+
+	@Column(name = "tc_number")
+    private String tcNumber;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "policy_type")
+    private PolicyTypeEnum policyType;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "vehicle_type_category")
+    private VehicleTypeCategoryEnum vehicleTypeCategory;
+
+	@Column(name = "code")
+    private String code;
+
+	@Column(name = "state")
+    private String state;
+	@Column(name = "number")
+    private String number;
+	@Column(name = "vehicle_color")
+    private String vehicleColor;
+	@Column(name = "nick_name")
+    private String nickName;
+	@Column(name = "reg_expiry")
+    private LocalDate regExpiry;
+	@Column(name = "insu_expiry")
+    private LocalDate insuExpiry;
+	@Column(name = "insu_policy")
+    private String insuPolicy;
+
+	@ManyToOne
+	private User customer;
+
 	@OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "insurance_id", referencedColumnName = "id")
     private InsuranceDetails insurance;
-	
-	
+
+
 	@OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "registration_id", referencedColumnName = "id")
     private VehicleRegistration registration;
+
+/*
+    private Integer mulkiaImage;
+    private List<Integer> vehicleImages;
+*/
 
 }

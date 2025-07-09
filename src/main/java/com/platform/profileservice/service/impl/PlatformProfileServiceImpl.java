@@ -552,7 +552,7 @@ public class PlatformProfileServiceImpl implements PlatformProfileService {
 					insuranceDetailsRepository.save(insurance);
 					vehicleDetails.setInsurance(insurance);	
 				}
-				vehicleDetails.setCustomerId(customer.getId());
+//				vehicleDetails.setCustomerId(customer.getId());
 				vehicleDetailsRepository.save(vehicleDetails);
 				return GenericResponse.builder().body(vehicleDetails).code("200").message("success").status("success").build();
 			}
