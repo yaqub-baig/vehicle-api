@@ -1,6 +1,5 @@
 package com.platform.profileservice.exception;
 
-
 import com.platform.profileservice.response.GenericResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
@@ -99,10 +98,11 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<GenericResponse> handleIllegalArgument(IllegalArgumentException ex) {
-        log.warn ( "Illegal argument", ex );
-        return buildResponse ( ex, HttpStatus.BAD_REQUEST, ErrorMessage.ERROR_BAD_REQUEST );
+    public ResponseEntity<GenericResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+        return buildResponse ( ex, HttpStatus.BAD_REQUEST, ex.getMessage ( ) );
     }
+
+
 
     @ExceptionHandler(UnauthorizedAccessException.class)
     public ResponseEntity<GenericResponse> handleUnauthorized(UnauthorizedAccessException ex) {
@@ -168,6 +168,4 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status ( HttpStatus.OK ).body ( GenericResponse.builder ( ).status ( "failed" )
                 .code ( String.valueOf ( status.value ( ) ) ).message ( message ).build ( ) );
     }
-
-
 }
