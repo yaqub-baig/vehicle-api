@@ -14,6 +14,7 @@ import java.util.List;
 @Builder
 public class VehicleRegistrationRequest {
 
+    private String odometer;
     private String brand;
     private String model;
     private String year;
@@ -32,9 +33,11 @@ public class VehicleRegistrationRequest {
     private String vehicleColor;
     private String nickName;
     private LocalDate regExpiry;
+    private String insuCompany;
     private LocalDate insuExpiry;
     private String insuPolicy;
-    private Integer mulkiaImage;
-    private List<Integer> vehicleImages;
+    private Long mulkiaImageFront;
+    private Long mulkiaImageBack;
+    private List<Long> vehicleImages;
 
 }

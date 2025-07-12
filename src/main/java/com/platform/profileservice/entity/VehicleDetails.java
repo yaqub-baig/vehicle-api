@@ -1,16 +1,13 @@
 package com.platform.profileservice.entity;
 
-import javax.persistence.*;
-
 import com.platform.profileservice.util.PolicyTypeEnum;
 import com.platform.profileservice.util.VehicleTypeCategoryEnum;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
+import javax.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "vehicle_details")
@@ -21,78 +18,111 @@ import java.time.LocalDate;
 @Builder
 public class VehicleDetails {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
-	@Column(name = "id")
-	private Integer id;
-	@Column(name = "brand")
-	private String brand;
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "id")
+    private Integer id;
+    @Column(name = "brand")
+    private String brand;
 
-	@Column(name = "model")
+    @Column(name = "model")
     private String model;
 
-	@Column(name = "year")
-	private String year;
+    @Column(name = "year")
+    private String year;
 
-	@Column(name = "engine_type")
+    @Column(name = "engine_type")
     private String engineType;
 
-	@Column(name = "chassis_no")
-	private String chassisNo;
+    @Column(name = "engine_no")
+    private String engineNumber;
 
-	@Column(name = "origin")
+    @Column(name = "chassis_no")
+    private String chassisNo;
+
+    @Column(name = "origin")
     private String origin;
 
-	@Column(name = "no_of_passenger")
-	private String numOfPassenger;
+    @Column(name = "no_of_passenger")
+    private String numOfPassenger;
 
-	@Column(name = "vehicle_type")
+    @Column(name = "vehicle_type")
     private String vehicleType;
 
-	@Column(name = "tc_number")
+    @Column(name = "tc_number")
     private String tcNumber;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "policy_type")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "policy_type")
     private PolicyTypeEnum policyType;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "vehicle_type_category")
+    @Column(name = "insu_company")
+    private String insuCompany;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vehicle_type_category")
     private VehicleTypeCategoryEnum vehicleTypeCategory;
 
-	@Column(name = "code")
+    @Column(name = "code")
     private String code;
 
-	@Column(name = "state")
+    @Column(name = "state")
     private String state;
-	@Column(name = "number")
+    @Column(name = "number")
     private String number;
-	@Column(name = "vehicle_color")
+    @Column(name = "vehicle_color")
     private String vehicleColor;
-	@Column(name = "nick_name")
+    @Column(name = "nick_name")
     private String nickName;
-	@Column(name = "reg_expiry")
+    @Column(name = "reg_expiry")
     private LocalDate regExpiry;
-	@Column(name = "insu_expiry")
+    @Column(name = "insu_expiry")
     private LocalDate insuExpiry;
-	@Column(name = "insu_policy")
+    @Column(name = "insu_policy")
     private String insuPolicy;
+    @Column(name= "odometer")
+    private String odometer;
 
-	@ManyToOne
-	private User customer;
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "mulkia_image_id_front")
+    private MediaFile mulkiaImageFront;
 
-	@OneToOne(cascade = CascadeType.ALL)
+
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "mulkia_image_id_back")
+    private MediaFile mulkiaImageBack;
+
+    @OneToMany(orphanRemoval = true)
+    @JoinColumn(name = "vehicle_images_id")
+    private List<MediaFile> vehicleImages;
+
+    @ManyToOne
+    private User customer;
+
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "insurance_id", referencedColumnName = "id")
     private InsuranceDetails insurance;
-
-
-	@OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "registration_id", referencedColumnName = "id")
     private VehicleRegistration registration;
 
-/*
-    private Integer mulkiaImage;
-    private List<Integer> vehicleImages;
-*/
+    private boolean isDeleted ;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now ( );
+        updatedAt = createdAt;
+        isDeleted = false;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now ( );
+    }
+
+
 
 }

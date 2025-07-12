@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -15,7 +17,9 @@ public class VehicleDetailResponse {
 	private String brand;
 	private String model;
 	private String year;
+	private String odometer;
 	private String engineType;
+	private String engineNumber;
 	private String chassisNo;
 	private String origin;
 	private String numOfPassenger;
@@ -31,5 +35,9 @@ public class VehicleDetailResponse {
 	private LocalDate regExpiry;
 	private LocalDate insuExpiry;
 	private String insuPolicy;
+	private String insuCompany;
+	private MediaFileResponse mulkiaImageFront;
+	private MediaFileResponse mulkiaImageBack;
+	private List<MediaFileResponse> vehicleImages;
 
 }
