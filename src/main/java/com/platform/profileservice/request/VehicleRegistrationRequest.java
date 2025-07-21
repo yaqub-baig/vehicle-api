@@ -1,5 +1,6 @@
 package com.platform.profileservice.request;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -32,8 +33,10 @@ public class VehicleRegistrationRequest {
     private String number;
     private String vehicleColor;
     private String nickName;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate regExpiry;
     private String insuCompany;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate insuExpiry;
     private String insuPolicy;
     private Long mulkiaImageFront;
