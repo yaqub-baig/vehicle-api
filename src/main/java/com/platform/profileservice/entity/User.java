@@ -36,10 +36,20 @@ public class User {
 	@Column(name = "mobile_number",unique = true)
 	private String mobileNumber;
 
+	@Column(name = "web_site" )
+	private String webSite;
+
+	@Column(name = "company_name" )
+	private String companyName;
+
+	@Column(name = "emirates_id" )
+	private String vatNumber;
+
+	@Column(name = "account_status" )
+	private String accountStatus;
+
 	@Column(name = "is_verified")
 	private Boolean isVerified;
-
-
 
 	@ManyToMany(fetch = FetchType.EAGER) // or LAZY if you prefer
 	@JoinTable(
