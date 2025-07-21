@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -106,8 +107,38 @@ public class VehicleServiceImpl implements VehicleService {
     @Override
     public GenericResponse updateVehicleDetails(Integer vehicleId, VehicleRegistrationRequest request, String userId) {
         VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
+        Long prevId=null;
         vehicleMapper.updateEntity ( vehicleDetails, request );
-        VehicleDetailResponse response = vehicleMapper.toResponse ( vehicleDetails );
+        if(request.getMulkiaImageFront ()!=null){
+            MediaFile front = mediaFileRepository.findById ( request.getMulkiaImageFront ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) );
+            log.info("-----------1");
+            prevId=vehicleDetails.getMulkiaImageFront ().getId ();
+            log.info("-----------2");
+            vehicleDetails.setMulkiaImageFront (null  );
+            log.info("-----------3");
+            vehicleDetails.setMulkiaImageFront (front );
+            log.info("-----------4");
+            mediaFileRepository.deleteById ( prevId );
+            log.info("-----------5");
+        }
+        if(request.getMulkiaImageBack ()!=null){
+            MediaFile back = mediaFileRepository.findById ( request.getMulkiaImageBack ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) );
+            prevId=vehicleDetails.getMulkiaImageBack ().getId ();
+            vehicleDetails.setMulkiaImageBack (null);
+            vehicleDetails.setMulkiaImageBack (back );
+            mediaFileRepository.deleteById ( prevId );
+        }
+
+        if ( request.getVehicleImages ( ) != null ) {
+            log.info ( "1         Vehicle images size: {}", request.getVehicleImages ( ).size ( ) );
+            vehicleDetails.getVehicleImages ( ).clear ( );
+            List<MediaFile> vehicleImages = request.getVehicleImages ( ).stream ( )
+                    .map ( id -> mediaFileRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) ) ).collect ( Collectors.toList ( ) );
+            log.info ( "2 ------>Vehicle images size: {}", vehicleImages.size ( ) );
+            vehicleDetails.getVehicleImages (  ).addAll ( vehicleImages );
+        }
+        VehicleDetails save = vehicleRepository.save ( vehicleDetails );
+        VehicleDetailResponse response = vehicleMapper.toResponse ( save );
         return GenericResponse.builder ( ).body ( response ).code ( "200" ).message ( "success" ).status ( "success" ).build ( );
     }
 
@@ -117,6 +148,5 @@ public class VehicleServiceImpl implements VehicleService {
         vehicleDetails.setDeleted ( true );
         vehicleRepository.save ( vehicleDetails );
         return GenericResponse.builder ( ).body ( "Vehicle deleted" ).code ( "200" ).message ( "success" ).status ( "success" ).build ( );
-
     }
 }
