@@ -1,5 +1,6 @@
 package com.platform.profileservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.platform.profileservice.util.PolicyTypeEnum;
 import com.platform.profileservice.util.VehicleTypeCategoryEnum;
 import lombok.*;
@@ -75,24 +76,26 @@ public class VehicleDetails {
     @Column(name = "nick_name")
     private String nickName;
     @Column(name = "reg_expiry")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate regExpiry;
     @Column(name = "insu_expiry")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate insuExpiry;
     @Column(name = "insu_policy")
     private String insuPolicy;
     @Column(name= "odometer")
     private String odometer;
 
-    @ManyToOne(optional = true)
+    @ManyToOne(optional = true, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "mulkia_image_id_front")
     private MediaFile mulkiaImageFront;
 
 
-    @ManyToOne(optional = true)
+    @ManyToOne(optional = true,cascade = CascadeType.REMOVE)
     @JoinColumn(name = "mulkia_image_id_back")
     private MediaFile mulkiaImageBack;
 
-    @OneToMany(orphanRemoval = true)
+    @OneToMany(orphanRemoval = true,cascade = CascadeType.ALL)
     @JoinColumn(name = "vehicle_images_id")
     private List<MediaFile> vehicleImages;
 
