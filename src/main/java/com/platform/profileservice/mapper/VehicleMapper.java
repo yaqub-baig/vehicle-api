@@ -95,6 +95,10 @@ public class VehicleMapper {
         if ( request.getModel ( ) != null ) {
             vehicleDetails.setModel ( request.getModel ( ) );
         }
+        if(request.getEngineType() != null) {
+            vehicleDetails.setEngineType ( request.getEngineType ( ) );
+        }
+
         if ( request.getState ( ) != null ) {
             vehicleDetails.setState ( request.getState ( ) );
         }
@@ -125,6 +129,7 @@ public class VehicleMapper {
         if ( request.getInsuPolicy ( ) != null ) {
             vehicleDetails.setInsuPolicy ( request.getInsuPolicy ( ) );
         }
+
     }
 }
 
