@@ -39,21 +39,15 @@ public class VehicleServiceImpl implements VehicleService {
         if ( request.getMulkiaImageFront ( ) != null ) {
             MediaFile mulkiaImageFront = mediaFileRepository.findById ( request.getMulkiaImageFront ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Mulkia image not found" ) );
             entity.setMulkiaImageFront ( mulkiaImageFront );
-        } else {
-            throw new ResourceNotFoundException ( "mulkia image front is required" );
         }
         if ( request.getMulkiaImageBack ( ) != null ) {
             MediaFile mulkiaImageBack = mediaFileRepository.findById ( request.getMulkiaImageBack ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Mulkia image not found" ) );
             entity.setMulkiaImageBack ( mulkiaImageBack );
-        } else {
-            throw new ResourceNotFoundException ( "mulkia image back is required" );
         }
         if ( request.getVehicleImages ( ) != null ) {
             List<MediaFile> vehicleImages = request.getVehicleImages ( ).stream ( )
                     .map ( id -> mediaFileRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) ) ).toList ( );
             entity.setVehicleImages ( vehicleImages );
-        } else {
-            throw new ResourceNotFoundException ( "vehicle images are required" );
         }
         entity.setCustomer ( user );
         vehicleRepository.save ( entity );
