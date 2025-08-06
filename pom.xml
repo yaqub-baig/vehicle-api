@@ -9,10 +9,10 @@
 		<version>2.7.14</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.platform.profileservice</groupId>
-	<artifactId>PlatformProfileService</artifactId>
+	<groupId>com.service.vehichle</groupId>
+	<artifactId>VehicleService</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>PlatformProfileService</name>
+	<name>VehicleService</name>
 	<description>project for Spring Boot</description>
 	<properties>
 		<java.version>17</java.version>
