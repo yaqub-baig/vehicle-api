@@ -14,7 +14,7 @@ import com.service.vehicle.request.GarageServicesRequest;
 import com.service.vehicle.request.GarageTechnicianRequest;
 import com.service.vehicle.response.GenericResponse;
 
-public interface PlatformProfileService {
+public interface OldProfileService {
 
 	GenericResponse updateGarageProfileDetails(GarageProfileRequest request) throws GarageNotExistException;
 

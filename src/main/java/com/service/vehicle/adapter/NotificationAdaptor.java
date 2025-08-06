@@ -9,7 +9,7 @@ import com.service.vehicle.request.NotificationRequest;
 import com.service.vehicle.response.GenericResponse;
 
 @Component
-public class PlatformNotificationAdaptor {
+public class NotificationAdaptor {
 	
 	
 	@Value("${notification.service.send.email.url}")

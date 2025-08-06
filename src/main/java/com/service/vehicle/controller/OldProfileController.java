@@ -18,7 +18,7 @@ import com.service.vehicle.request.GarageServiceRequest;
 import com.service.vehicle.request.GarageServicesRequest;
 import com.service.vehicle.request.GarageTechnicianRequest;
 import com.service.vehicle.response.GenericResponse;
-import com.service.vehicle.service.PlatformProfileService;
+import com.service.vehicle.service.OldProfileService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,11 +30,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/profile")
-public class PlatformProfileController {
+public class OldProfileController {
 	
 	
 	@Autowired
-	PlatformProfileService platformProfileService;
+    OldProfileService oldProfileService;
 	
 	
 	
@@ -61,7 +61,7 @@ public class PlatformProfileController {
 	public GenericResponse updateGarageDetails(@RequestBody GarageProfileRequest request) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.updateGarageProfileDetails(request);
+			response = oldProfileService.updateGarageProfileDetails(request);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage license details -> "+e.getMessage());
@@ -80,7 +80,7 @@ public class PlatformProfileController {
 	public GenericResponse updateGarageDetails(Integer garageId) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.getGarageLicenseProfileDetails(garageId);
+			response = oldProfileService.getGarageLicenseProfileDetails(garageId);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while get garage license details -> "+e.getMessage());
@@ -99,7 +99,7 @@ public class PlatformProfileController {
 	public GenericResponse registerGarageOwnerDetails(@RequestBody GarageOwnerRequest request) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.updateGarageOwnerDetails(request);
+			response = oldProfileService.updateGarageOwnerDetails(request);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage owner details -> "+e.getMessage());
@@ -119,7 +119,7 @@ public class PlatformProfileController {
 	public GenericResponse registerGarageServiceDetails(@RequestBody GarageServicesRequest request) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.updateGarageServicesDetails(request);
+			response = oldProfileService.updateGarageServicesDetails(request);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage profile details -> "+e.getMessage());
@@ -138,7 +138,7 @@ public class PlatformProfileController {
 	public GenericResponse getGarageServiceDetails(Integer garageId) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.getGarageServicesDetails(garageId);
+			response = oldProfileService.getGarageServicesDetails(garageId);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage profile details -> "+e.getMessage());
@@ -158,7 +158,7 @@ public class PlatformProfileController {
 	public GenericResponse getServiceLookupDetails() {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.getPlatformServicesLookup();
+			response = oldProfileService.getPlatformServicesLookup();
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage profile details -> "+e.getMessage());
@@ -178,7 +178,7 @@ public class PlatformProfileController {
 	public GenericResponse deleteGarageServiceDetails(@RequestBody GarageServiceRequest request) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.deleteGarageServiceDetails(request);
+			response = oldProfileService.deleteGarageServiceDetails(request);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage profile details -> "+e.getMessage());
@@ -197,7 +197,7 @@ public class PlatformProfileController {
 	public GenericResponse registerGarageTechnicianDetails(@RequestBody GarageTechnicianRequest request) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.updateGarageTechnicianDetails(request);
+			response = oldProfileService.updateGarageTechnicianDetails(request);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage profile details -> "+e.getMessage());
@@ -216,7 +216,7 @@ public class PlatformProfileController {
 	public GenericResponse getGarageTechnicianDetails(Integer garageId) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.getTechnicianDetails(garageId);
+			response = oldProfileService.getTechnicianDetails(garageId);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage profile details -> "+e.getMessage());
@@ -236,7 +236,7 @@ public class PlatformProfileController {
 	public GenericResponse getGarageOwnerDetails(Integer garageId) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.getGarageOwnerDetails(garageId);
+			response = oldProfileService.getGarageOwnerDetails(garageId);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage profile details -> "+e.getMessage());
@@ -255,7 +255,7 @@ public class PlatformProfileController {
 	public GenericResponse activateGarageAndFreeTrail(Integer garageId) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.activateGarageAndFreeTrail(garageId);
+			response = oldProfileService.activateGarageAndFreeTrail(garageId);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage profile details -> "+e.getMessage());
@@ -274,7 +274,7 @@ public class PlatformProfileController {
 	public GenericResponse activateGarageForSearchResults() {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.activateGarageForSearchResults();
+			response = oldProfileService.activateGarageForSearchResults();
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while activating garage profile for search -> "+e.getMessage());
@@ -293,7 +293,7 @@ public class PlatformProfileController {
 	public GenericResponse registerGaragePaymentDetails(@RequestBody GaragePaymentRequest request) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.registerGaragePaymentDetails(request);
+			response = oldProfileService.registerGaragePaymentDetails(request);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update garage payment details -> "+e.getMessage());
@@ -313,7 +313,7 @@ public class PlatformProfileController {
 	public GenericResponse uploadGarageLicenseDocument(@RequestParam("garageId") Integer garageId, @RequestParam("file") MultipartFile file) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.uploadGarageLicenseDocument(garageId, file);
+			response = oldProfileService.uploadGarageLicenseDocument(garageId, file);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while upload garage document details -> "+e.getMessage());
@@ -333,7 +333,7 @@ public class PlatformProfileController {
 	public GenericResponse updateCustomerVehicleDetails(@RequestBody CustomerVehicleRequest request) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.updateCustomerVehicleDetails(request);
+			response = oldProfileService.updateCustomerVehicleDetails(request);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while update customer profile details -> "+e.getMessage());
@@ -352,7 +352,7 @@ public class PlatformProfileController {
 	public GenericResponse getCustomerVehicleDetails(Integer customerId) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.getCustomerVehicleDetails(customerId);
+			response = oldProfileService.getCustomerVehicleDetails(customerId);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while customer vehicle profile details -> "+e.getMessage());
@@ -371,7 +371,7 @@ public class PlatformProfileController {
 	public GenericResponse deleteCustomerVehicleDetails(Integer customerId, Integer vehicleId) {
 		GenericResponse response = null;
 		try {
-			response = platformProfileService.deleteCustomerVehicleDetails(customerId, vehicleId);
+			response = oldProfileService.deleteCustomerVehicleDetails(customerId, vehicleId);
 			return response;
 		} catch (Exception e) {
 			log.error("ERROR while deleting customer vehicle profile details -> "+e.getMessage());

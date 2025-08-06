@@ -7,7 +7,7 @@ import com.service.vehicle.request.GarageProfileRequest;
 import com.service.vehicle.util.DateHelper;
 
 @Component
-public class PlatformProfileTransformer {
+public class ServiceTransformer {
 
 	public GarageLicenseDetails tranformRequestToLicenseDetails(GarageProfileRequest request) {
 		return GarageLicenseDetails.builder()

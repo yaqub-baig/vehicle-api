@@ -15,10 +15,10 @@ import io.swagger.v3.oas.models.servers.Server;
 @Configuration
 public class OpenAPIConfig {
 
-	@Value("${platform.auth.service.base.url}")
+	@Value("${auth.service.base.url}")
 	private String devUrl;
 
-	@Value("${platform.auth.service.base.prod.url}")
+	@Value("${auth.service.base.prod.url}")
 	private String prodUrl;
 
 	@Bean
