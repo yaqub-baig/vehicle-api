@@ -99,9 +99,10 @@ public class VehicleDetails {
     @JoinColumn(name = "vehicle_images_id")
     private List<MediaFile> vehicleImages;
 
-    @ManyToOne
-    private User customer;
+//    @ManyToOne
+//    private User customer;
 
+    private Integer customerId;
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

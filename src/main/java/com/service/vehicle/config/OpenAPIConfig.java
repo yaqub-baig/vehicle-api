@@ -38,7 +38,7 @@ public class OpenAPIConfig {
 
 		License mitLicense = new License().name("License").url("https://carservices.com/licenses/");
 
-		Info info = new Info().title("Platform Profile Management API").version("1.0").contact(contact)
+		Info info = new Info().title("Vehicle API").version("1.0").contact(contact)
 				.description("This API exposes endpoints to manage profiles of platform.")
 				.termsOfService("https://www.carservices.com/terms").license(mitLicense);
 

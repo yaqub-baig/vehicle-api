@@ -18,7 +18,7 @@ public interface VehicleDetailsRepository extends JpaRepository<VehicleDetails, 
 
 	List<VehicleDetails> findByCustomerId(Integer customerId);
 
-	List<VehicleDetails> findByCustomerMobileNumber(String userId);
+//	List<VehicleDetails> findByCustomerMobileNumber(String userId);
 
 	@Query("SELECT m FROM VehicleDetails v JOIN v.vehicleImages m WHERE v.id = :vehicleId")
 	List<MediaFile> findImagesByVehicleId(@Param("vehicleId") Integer vehicleId);

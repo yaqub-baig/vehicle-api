@@ -4,7 +4,6 @@ import com.service.vehicle.dao.MediaFileRepository;
 import com.service.vehicle.dao.UserRepository;
 import com.service.vehicle.dao.VehicleDetailsRepository;
 import com.service.vehicle.entity.MediaFile;
-import com.service.vehicle.entity.User;
 import com.service.vehicle.entity.VehicleDetails;
 import com.service.vehicle.exception.ResourceNotFoundException;
 import com.service.vehicle.mapper.MediaFileMapper;
@@ -32,9 +31,10 @@ public class VehicleServiceImpl implements VehicleService {
     private final MediaFileRepository mediaFileRepository;
 
     @Override
-    public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String mobileNumber) {
-        User user = userRepository.findByMobileNumber ( mobileNumber ).orElseThrow ( () -> new ResourceNotFoundException ( "User not found" ) );
+    public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String mobileNumber, String autoAddaId) {
+
         VehicleDetails entity = vehicleMapper.toEntity ( request );
+        entity.setCustomerId ( Integer.parseInt ( autoAddaId ) );
 
         if ( request.getMulkiaImageFront ( ) != null ) {
             MediaFile mulkiaImageFront = mediaFileRepository.findById ( request.getMulkiaImageFront ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Mulkia image not found" ) );
@@ -49,7 +49,6 @@ public class VehicleServiceImpl implements VehicleService {
                     .map ( id -> mediaFileRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) ) ).toList ( );
             entity.setVehicleImages ( vehicleImages );
         }
-        entity.setCustomer ( user );
         vehicleRepository.save ( entity );
         return GenericResponse.builder ( )
                 .status ( "success" )
@@ -59,9 +58,9 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
-    public GenericResponse getVehicleDetails(String userId) {
+    public GenericResponse getVehicleDetails(String userId, String autoAddaId) {
         log.info ( "1. Getting vehicle details for user id: {}", userId );
-        List<VehicleDetails> byCustomerMobileNumber = vehicleRepository.findByCustomerMobileNumber ( userId );
+        List<VehicleDetails> byCustomerMobileNumber = vehicleRepository.findByCustomerId ( Integer.parseInt ( autoAddaId ) );
         log.info ( "2. Vehicle list size: {}", byCustomerMobileNumber.size ( ) );
         List<VehicleDetailResponse> list1 = byCustomerMobileNumber.stream ( )
                 .sorted ( (o1, o2) -> o2.getId ( ).compareTo ( o1.getId ( ) ) )

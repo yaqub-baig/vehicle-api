@@ -4,9 +4,9 @@ import com.service.vehicle.request.VehicleRegistrationRequest;
 import com.service.vehicle.response.GenericResponse;
 
 public interface VehicleService {
-    GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String userId);
+    GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String userId, String autoAddaId);
 
-    GenericResponse getVehicleDetails(String userId);
+    GenericResponse getVehicleDetails(String userId, String autoAddaId);
 
     GenericResponse getVehicleDetailsByVehicleId(Integer vehicleId, String userId, String userRole);
 

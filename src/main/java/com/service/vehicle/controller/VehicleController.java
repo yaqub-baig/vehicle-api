@@ -17,16 +17,18 @@ public class VehicleController {
     @PostMapping("/add")
     public GenericResponse addVehicleDetails(@RequestBody VehicleRegistrationRequest request,
                                              @RequestHeader(value = "X-User-Id") String userId ,
-                                             @RequestHeader(value = "X-User-Role") String userRole) {
+                                             @RequestHeader(value = "X-User-Role") String userRole,
+                                             @RequestHeader(value = "X-Auto-Adda-Id") String autoAddaId) {
 
       log.info( "userRole -> " + userRole + " userId -> " + userId + " request -> "  );
-        return vehicleService.addVehicleDetails ( request,userId );
+        return vehicleService.addVehicleDetails ( request,userId ,autoAddaId );
     }
 
     @GetMapping
     public GenericResponse getVehicleDetails(@RequestHeader(value = "X-User-Id") String userId ,
-                                             @RequestHeader(value = "X-User-Role") String userRole) {
-        return vehicleService.getVehicleDetails ( userId );
+                                             @RequestHeader(value = "X-User-Role") String userRole,
+                                             @RequestHeader(value = "X-Auto-Adda-Id") String autoAddaId) {
+        return vehicleService.getVehicleDetails ( userId,autoAddaId );
     }
 
     @GetMapping("/{vehicleId}")
