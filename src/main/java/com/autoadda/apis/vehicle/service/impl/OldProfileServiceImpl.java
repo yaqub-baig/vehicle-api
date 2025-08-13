@@ -5,13 +5,10 @@ import com.autoadda.apis.vehicle.dao.*;
 import com.autoadda.apis.vehicle.entity.*;
 import com.autoadda.apis.vehicle.request.*;
 import com.autoadda.apis.vehicle.response.*;
-import com.service.vehicle.dao.*;
-import com.service.vehicle.entity.*;
+
 import com.autoadda.apis.vehicle.exception.CustomerNotExistException;
 import com.autoadda.apis.vehicle.exception.GarageNotExistException;
 import com.autoadda.apis.vehicle.exception.MemberAlreadyExistException;
-import com.service.vehicle.request.*;
-import com.service.vehicle.response.*;
 import com.autoadda.apis.vehicle.service.OldProfileService;
 import com.autoadda.apis.vehicle.transformers.ServiceTransformer;
 import com.autoadda.apis.vehicle.util.AESUtil;
