@@ -31,7 +31,7 @@ public class VehicleServiceImpl implements VehicleService {
     private final MediaFileRepository mediaFileRepository;
 
     @Override
-    public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String mobileNumber, String autoAddaId) {
+    public GenericResponse addVehicleDetails(VehicleRegistrationRequest request,  String autoAddaId) {
 
         VehicleDetails entity = vehicleMapper.toEntity ( request );
         entity.setCustomerId ( Integer.parseInt ( autoAddaId ) );
@@ -58,8 +58,8 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
-    public GenericResponse getVehicleDetails(String userId, String autoAddaId) {
-        log.info ( "1. Getting vehicle details for user id: {}", userId );
+    public GenericResponse getVehicleDetails( String autoAddaId) {
+
         List<VehicleDetails> byCustomerMobileNumber = vehicleRepository.findByCustomerId ( Integer.parseInt ( autoAddaId ) );
         log.info ( "2. Vehicle list size: {}", byCustomerMobileNumber.size ( ) );
         List<VehicleDetailResponse> list1 = byCustomerMobileNumber.stream ( )
@@ -76,7 +76,7 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
-    public GenericResponse getVehicleDetailsByVehicleId(Integer vehicleId, String userId, String userRole) {
+    public GenericResponse getVehicleDetailsByVehicleId(Integer vehicleId) {
         VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
         if ( vehicleDetails.isDeleted ( ) ) {
             throw new ResourceNotFoundException ( "Vehicle deleted" );
@@ -90,7 +90,7 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
-    public GenericResponse getVehicleImagesByVehicleId(Integer vehicleId, String userId, String userRole) {
+    public GenericResponse getVehicleImagesByVehicleId(Integer vehicleId) {
         List<MediaFileResponse> list = vehicleRepository.findImagesByVehicleId ( vehicleId )
                 .stream ( ).map ( mediaFileMapper::toResponse ).toList ( );
         return GenericResponse.builder ( ).body ( list.isEmpty ( ) ? "No images found" : list )
