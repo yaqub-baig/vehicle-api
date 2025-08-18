@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import javax.transaction.Transactional;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -98,41 +100,66 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
+    @Transactional
     public GenericResponse updateVehicleDetails(Integer vehicleId, VehicleRegistrationRequest request, String userId) {
-        VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
-        Long prevId=null;
-        vehicleMapper.updateEntity ( vehicleDetails, request );
-        if(request.getMulkiaImageFront ()!=null){
-            MediaFile front = mediaFileRepository.findById ( request.getMulkiaImageFront ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) );
-            log.info("-----------1");
-            prevId=vehicleDetails.getMulkiaImageFront ().getId ();
-            log.info("-----------2");
-            vehicleDetails.setMulkiaImageFront (null  );
-            log.info("-----------3");
-            vehicleDetails.setMulkiaImageFront (front );
-            log.info("-----------4");
-            mediaFileRepository.deleteById ( prevId );
-            log.info("-----------5");
-        }
-        if(request.getMulkiaImageBack ()!=null){
-            MediaFile back = mediaFileRepository.findById ( request.getMulkiaImageBack ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) );
-            prevId=vehicleDetails.getMulkiaImageBack ().getId ();
-            vehicleDetails.setMulkiaImageBack (null);
-            vehicleDetails.setMulkiaImageBack (back );
-            mediaFileRepository.deleteById ( prevId );
-        }
+        VehicleDetails vehicleDetails = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
 
-        if ( request.getVehicleImages ( ) != null ) {
-            log.info ( "1         Vehicle images size: {}", request.getVehicleImages ( ).size ( ) );
-            vehicleDetails.getVehicleImages ( ).clear ( );
-            List<MediaFile> vehicleImages = request.getVehicleImages ( ).stream ( )
-                    .map ( id -> mediaFileRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) ) ).collect ( Collectors.toList ( ) );
-            log.info ( "2 ------>Vehicle images size: {}", vehicleImages.size ( ) );
-            vehicleDetails.getVehicleImages (  ).addAll ( vehicleImages );
+        // Store old media file references
+        MediaFile oldFrontImage = vehicleDetails.getMulkiaImageFront();
+        MediaFile oldBackImage = vehicleDetails.getMulkiaImageBack();
+        List<MediaFile> oldVehicleImages = new ArrayList<>(vehicleDetails.getVehicleImages());
+
+        // Update basic vehicle details
+        vehicleMapper.updateEntity(vehicleDetails, request);
+
+        // Handle front mulkia image update
+        if (request.getMulkiaImageFront() != null) {
+            MediaFile newFrontImage = mediaFileRepository.findById(request.getMulkiaImageFront())
+                    .orElseThrow(() -> new ResourceNotFoundException("Front mulkia image not found"));
+            vehicleDetails.setMulkiaImageFront(newFrontImage);
         }
-        VehicleDetails save = vehicleRepository.save ( vehicleDetails );
-        VehicleDetailResponse response = vehicleMapper.toResponse ( save );
-        return GenericResponse.builder ( ).body ( response ).code ( "200" ).message ( "success" ).status ( "success" ).build ( );
+        
+        // Handle back mulkia image update
+        if (request.getMulkiaImageBack() != null) {
+            MediaFile newBackImage = mediaFileRepository.findById(request.getMulkiaImageBack())
+                    .orElseThrow(() -> new ResourceNotFoundException("Back mulkia image not found"));
+            vehicleDetails.setMulkiaImageBack(newBackImage);
+        }
+        
+        // Handle vehicle images update
+        if (request.getVehicleImages() != null && !request.getVehicleImages().isEmpty()) {
+            vehicleDetails.getVehicleImages().clear();
+            List<MediaFile> vehicleImages = request.getVehicleImages().stream()
+                    .map(id -> mediaFileRepository.findById(id)
+                            .orElseThrow(() -> new ResourceNotFoundException("Vehicle image not found with id: " + id)))
+                    .toList();
+            vehicleDetails.getVehicleImages().addAll(vehicleImages);
+        }
+        
+        // Save the vehicle details
+        VehicleDetails savedVehicle = vehicleRepository.save(vehicleDetails);
+        
+        // Delete old media files that are no longer referenced
+        if (oldFrontImage != null && !oldFrontImage.equals(savedVehicle.getMulkiaImageFront())) {
+            mediaFileRepository.delete(oldFrontImage);
+        }
+        if (oldBackImage != null && !oldBackImage.equals(savedVehicle.getMulkiaImageBack())) {
+            mediaFileRepository.delete(oldBackImage);
+        }
+        if (request.getVehicleImages() != null) {
+            oldVehicleImages.stream()
+                    .filter(oldImg -> !savedVehicle.getVehicleImages().contains(oldImg))
+                    .forEach(mediaFileRepository::delete);
+        }
+        
+        VehicleDetailResponse response = vehicleMapper.toResponse(savedVehicle);
+        return GenericResponse.builder()
+                .body(response)
+                .code("200")
+                .message("Vehicle updated successfully")
+                .status("success")
+                .build();
     }
 
     @Override
