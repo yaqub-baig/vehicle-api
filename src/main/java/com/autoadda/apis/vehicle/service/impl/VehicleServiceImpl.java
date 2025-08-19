@@ -31,7 +31,7 @@ public class VehicleServiceImpl implements VehicleService {
     private final MediaFileRepository mediaFileRepository;
 
     @Override
-    public GenericResponse addVehicleDetails(VehicleRegistrationRequest request,  String autoAddaId) {
+    public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String autoAddaId) {
 
         VehicleDetails entity = vehicleMapper.toEntity ( request );
         entity.setCustomerId ( Integer.parseInt ( autoAddaId ) );
@@ -58,13 +58,13 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
-    public GenericResponse getVehicleDetails( String autoAddaId) {
+    public GenericResponse getVehicleDetails(String autoAddaId) {
 
         List<VehicleDetails> byCustomerMobileNumber = vehicleRepository.findByCustomerId ( Integer.parseInt ( autoAddaId ) );
         log.info ( "2. Vehicle list size: {}", byCustomerMobileNumber.size ( ) );
         List<VehicleDetailResponse> list1 = byCustomerMobileNumber.stream ( )
                 .sorted ( (o1, o2) -> o2.getId ( ).compareTo ( o1.getId ( ) ) )
-                .filter ( vehicleDetails -> !vehicleDetails.isDeleted ( ))
+                .filter ( vehicleDetails -> ! vehicleDetails.isDeleted ( ) )
                 .map ( vehicleMapper::toResponse ).toList ( );
 
         return GenericResponse.builder ( )
@@ -100,25 +100,25 @@ public class VehicleServiceImpl implements VehicleService {
     @Override
     public GenericResponse updateVehicleDetails(Integer vehicleId, VehicleRegistrationRequest request, String userId) {
         VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
-        Long prevId=null;
+        Long prevId = null;
         vehicleMapper.updateEntity ( vehicleDetails, request );
-        if(request.getMulkiaImageFront ()!=null){
+        if ( request.getMulkiaImageFront ( ) != null && ! vehicleDetails.getMulkiaImageFront ( ).getId ( ).equals ( request.getMulkiaImageFront ( ) ) ) {
             MediaFile front = mediaFileRepository.findById ( request.getMulkiaImageFront ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) );
-            log.info("-----------1");
-            prevId=vehicleDetails.getMulkiaImageFront ().getId ();
-            log.info("-----------2");
-            vehicleDetails.setMulkiaImageFront (null  );
-            log.info("-----------3");
-            vehicleDetails.setMulkiaImageFront (front );
-            log.info("-----------4");
+            log.info ( "-----------1" );
+            prevId = vehicleDetails.getMulkiaImageFront ( ).getId ( );
+            log.info ( "-----------2" );
+            vehicleDetails.setMulkiaImageFront ( null );
+            log.info ( "-----------3" );
+            vehicleDetails.setMulkiaImageFront ( front );
+            log.info ( "-----------4" );
             mediaFileRepository.deleteById ( prevId );
-            log.info("-----------5");
+            log.info ( "-----------5" );
         }
-        if(request.getMulkiaImageBack ()!=null){
+        if ( request.getMulkiaImageBack ( ) != null && ! vehicleDetails.getMulkiaImageBack ( ).getId ( ).equals ( request.getMulkiaImageBack ( ) ) ) {
             MediaFile back = mediaFileRepository.findById ( request.getMulkiaImageBack ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) );
-            prevId=vehicleDetails.getMulkiaImageBack ().getId ();
-            vehicleDetails.setMulkiaImageBack (null);
-            vehicleDetails.setMulkiaImageBack (back );
+            prevId = vehicleDetails.getMulkiaImageBack ( ).getId ( );
+            vehicleDetails.setMulkiaImageBack ( null );
+            vehicleDetails.setMulkiaImageBack ( back );
             mediaFileRepository.deleteById ( prevId );
         }
 
@@ -128,7 +128,7 @@ public class VehicleServiceImpl implements VehicleService {
             List<MediaFile> vehicleImages = request.getVehicleImages ( ).stream ( )
                     .map ( id -> mediaFileRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) ) ).collect ( Collectors.toList ( ) );
             log.info ( "2 ------>Vehicle images size: {}", vehicleImages.size ( ) );
-            vehicleDetails.getVehicleImages (  ).addAll ( vehicleImages );
+            vehicleDetails.getVehicleImages ( ).addAll ( vehicleImages );
         }
         VehicleDetails save = vehicleRepository.save ( vehicleDetails );
         VehicleDetailResponse response = vehicleMapper.toResponse ( save );
