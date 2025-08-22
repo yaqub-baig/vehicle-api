@@ -39,5 +39,6 @@ public class VehicleDetailResponse {
 	private MediaFileResponse mulkiaImageFront;
 	private MediaFileResponse mulkiaImageBack;
 	private List<MediaFileResponse> vehicleImages;
+	private MediaFileResponse mainImage;
 
 }

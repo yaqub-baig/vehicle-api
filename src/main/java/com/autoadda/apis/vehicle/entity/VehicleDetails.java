@@ -98,9 +98,8 @@ public class VehicleDetails {
     @OneToMany(orphanRemoval = true,cascade = CascadeType.ALL)
     @JoinColumn(name = "vehicle_images_id")
     private List<MediaFile> vehicleImages;
-
-//    @ManyToOne
-//    private User customer;
+    @Column(name = "main_image_id")
+    private Long mainImageId;
 
     private Integer customerId;
     private LocalDateTime createdAt;
@@ -126,7 +125,5 @@ public class VehicleDetails {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now ( );
     }
-
-
 
 }

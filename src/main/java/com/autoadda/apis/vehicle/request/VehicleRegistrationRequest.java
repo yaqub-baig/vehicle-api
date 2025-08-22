@@ -42,5 +42,6 @@ public class VehicleRegistrationRequest {
     private Long mulkiaImageFront;
     private Long mulkiaImageBack;
     private List<Long> vehicleImages;
+    private Long mainImageId;
 
 }

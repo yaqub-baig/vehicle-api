@@ -34,6 +34,7 @@ public class VehicleMapper {
         vehicleDetails.setInsuPolicy ( request.getInsuPolicy ( ) );
         vehicleDetails.setEngineType ( request.getEngineType ( ) );
         vehicleDetails.setInsuCompany ( request.getInsuCompany ( ) );
+        vehicleDetails.setMainImageId ( request.getMainImageId ( ) );
         vehicleDetails.setVehicleType ( request.getVehicleType ( ) );
         vehicleDetails.setEngineNumber ( request.getEngineNumber ( ) );
         vehicleDetails.setVehicleColor ( request.getVehicleColor ( ) );
@@ -82,6 +83,13 @@ public class VehicleMapper {
         vehicleDetailResponse.setMulkiaImageFront ( vehicleDetails.getMulkiaImageFront ( ) == null ? null : mediaFileMapper.toResponse ( vehicleDetails.getMulkiaImageFront ( ) ) );
         vehicleDetailResponse.setMulkiaImageBack ( vehicleDetails.getMulkiaImageBack ( ) == null ? null : mediaFileMapper.toResponse ( vehicleDetails.getMulkiaImageBack ( ) ) );
         vehicleDetailResponse.setVehicleImages ( vehicleDetails.getVehicleImages ( ) == null ? null : vehicleDetails.getVehicleImages ( ).stream ( ).map ( mediaFileMapper::toResponse ).toList ( ) );
+        vehicleDetailResponse.setMainImage(
+                vehicleDetails.getVehicleImages().stream()
+                        .filter(m -> m.getId().equals(vehicleDetails.getMainImageId()))
+                        .map(mediaFileMapper::toResponse)
+                        .findFirst()
+                        .orElse(null)
+        );
         return vehicleDetailResponse;
     }
 
@@ -128,6 +136,9 @@ public class VehicleMapper {
         }
         if ( request.getInsuPolicy ( ) != null ) {
             vehicleDetails.setInsuPolicy ( request.getInsuPolicy ( ) );
+        }
+        if(request.getMainImageId ()!=null){
+            vehicleDetails.setMainImageId ( request.getMainImageId ( ) );
         }
 
     }
