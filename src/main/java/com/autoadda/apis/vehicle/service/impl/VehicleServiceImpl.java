@@ -32,7 +32,7 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String autoAddaId) {
-
+        vehicleRepository.findByChassisNo ( request.getChassisNo ( ) ).orElseThrow ( ()-> new ResourceNotFoundException ( "Vehicle already exists" ) ) ;
         VehicleDetails entity = vehicleMapper.toEntity ( request );
         entity.setCustomerId ( Integer.parseInt ( autoAddaId ) );
 

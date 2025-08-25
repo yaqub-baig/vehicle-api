@@ -38,7 +38,7 @@ public class VehicleDetails {
     @Column(name = "engine_no")
     private String engineNumber;
 
-    @Column(name = "chassis_no")
+    @Column(name = "chassis_no",unique = true)
     private String chassisNo;
 
     @Column(name = "origin")

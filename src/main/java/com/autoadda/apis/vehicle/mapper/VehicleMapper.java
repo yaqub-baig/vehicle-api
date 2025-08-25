@@ -140,6 +140,9 @@ public class VehicleMapper {
         if(request.getMainImageId ()!=null){
             vehicleDetails.setMainImageId ( request.getMainImageId ( ) );
         }
+        if(request.getVehicleColor ()!= null){
+            vehicleDetails.setVehicleColor ( request.getVehicleColor ( ) );
+        }
 
     }
 }
