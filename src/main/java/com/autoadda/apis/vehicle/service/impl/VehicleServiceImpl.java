@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,7 +33,10 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String autoAddaId) {
-        vehicleRepository.findByChassisNo ( request.getChassisNo ( ) ).orElseThrow ( ()-> new ResourceNotFoundException ( "Vehicle already exists" ) ) ;
+        Optional<VehicleDetails> byChassisNo = vehicleRepository.findByChassisNo ( request.getChassisNo ( ) );
+        if(byChassisNo.isPresent ()){
+            throw new ResourceNotFoundException ( "Vehicle already exists" );
+        }
         VehicleDetails entity = vehicleMapper.toEntity ( request );
         entity.setCustomerId ( Integer.parseInt ( autoAddaId ) );
 
