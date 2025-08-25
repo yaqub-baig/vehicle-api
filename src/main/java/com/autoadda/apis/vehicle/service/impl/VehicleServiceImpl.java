@@ -35,7 +35,7 @@ public class VehicleServiceImpl implements VehicleService {
     public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String autoAddaId) {
         Optional<VehicleDetails> byChassisNo = vehicleRepository.findByChassisNo ( request.getChassisNo ( ) );
         if(byChassisNo.isPresent ()){
-            throw new ResourceNotFoundException ( "Vehicle already exists" );
+            throw new ResourceNotFoundException ( "Vehicle chassis number already exists" );
         }
         VehicleDetails entity = vehicleMapper.toEntity ( request );
         entity.setCustomerId ( Integer.parseInt ( autoAddaId ) );
