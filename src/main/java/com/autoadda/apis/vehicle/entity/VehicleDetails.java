@@ -66,7 +66,8 @@ public class VehicleDetails {
 
     @Column(name = "code")
     private String code;
-
+    @Column(name = "brand_request_reference_id")
+    private String brandRequestReferenceId;
     @Column(name = "state")
     private String state;
     @Column(name = "number")
