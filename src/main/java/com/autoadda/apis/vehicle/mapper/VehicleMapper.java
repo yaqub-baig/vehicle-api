@@ -21,8 +21,8 @@ public class VehicleMapper {
         vehicleDetails.setCode ( request.getCode ( ) );
         vehicleDetails.setYear ( request.getYear ( ) );
         vehicleDetails.setState ( request.getState ( ) );
-        vehicleDetails.setBrand ( request.getBrand ( ) );
-        vehicleDetails.setModel ( request.getModel ( ) );
+        vehicleDetails.setBrand ( request.getBrand ( ) != null && ! request.getBrand ( ).isBlank ( ) ? request.getBrand ( ) : null );
+        vehicleDetails.setModel ( request.getModel ( ) != null && ! request.getModel ( ).isBlank ( ) ? request.getModel ( ) : null );
         vehicleDetails.setOrigin ( request.getOrigin ( ) );
         vehicleDetails.setNumber ( request.getNumber ( ) );
         vehicleDetails.setTcNumber ( request.getTcNumber ( ) );
@@ -32,10 +32,12 @@ public class VehicleMapper {
         vehicleDetails.setChassisNo ( request.getChassisNo ( ) );
         vehicleDetails.setInsuExpiry ( request.getInsuExpiry ( ) );
         vehicleDetails.setInsuPolicy ( request.getInsuPolicy ( ) );
-        vehicleDetails.setEngineType ( request.getEngineType ( ) );
+        vehicleDetails.setEngineType ( request.getEngineType ( ) != null && ! request.getEngineType ( ).isBlank ( ) ? request.getEngineType ( ) : null );
         vehicleDetails.setInsuCompany ( request.getInsuCompany ( ) );
+        vehicleDetails.setMainImageId ( request.getMainImageId ( ) );
         vehicleDetails.setVehicleType ( request.getVehicleType ( ) );
         vehicleDetails.setEngineNumber ( request.getEngineNumber ( ) );
+        vehicleDetails.setBrandRequestReferenceId ( request.getBrandRequestReferenceId ( ) != null && ! request.getBrandRequestReferenceId ( ).isBlank ( ) ? request.getBrandRequestReferenceId ( ) : null );
         vehicleDetails.setVehicleColor ( request.getVehicleColor ( ) );
         vehicleDetails.setNumOfPassenger ( request.getNumOfPassenger ( ) );
         // PolicyTypeEnum validation and exception handling
@@ -79,9 +81,17 @@ public class VehicleMapper {
         vehicleDetailResponse.setEngineNumber ( vehicleDetails.getEngineNumber ( ) != null ? vehicleDetails.getEngineNumber ( ) : null );
         vehicleDetailResponse.setNumOfPassenger ( vehicleDetails.getNumOfPassenger ( ) != null ? vehicleDetails.getNumOfPassenger ( ) : null );
         vehicleDetailResponse.setVehicleTypeCategory ( vehicleDetails.getVehicleTypeCategory ( ) != null ? vehicleDetails.getVehicleTypeCategory ( ) : null );
+        vehicleDetailResponse.setBrandRequestReferenceId ( vehicleDetails.getBrandRequestReferenceId ( ) != null ? vehicleDetails.getBrandRequestReferenceId ( ) : null );
         vehicleDetailResponse.setMulkiaImageFront ( vehicleDetails.getMulkiaImageFront ( ) == null ? null : mediaFileMapper.toResponse ( vehicleDetails.getMulkiaImageFront ( ) ) );
         vehicleDetailResponse.setMulkiaImageBack ( vehicleDetails.getMulkiaImageBack ( ) == null ? null : mediaFileMapper.toResponse ( vehicleDetails.getMulkiaImageBack ( ) ) );
         vehicleDetailResponse.setVehicleImages ( vehicleDetails.getVehicleImages ( ) == null ? null : vehicleDetails.getVehicleImages ( ).stream ( ).map ( mediaFileMapper::toResponse ).toList ( ) );
+        vehicleDetailResponse.setMainImage (
+                vehicleDetails.getVehicleImages ( ).stream ( )
+                        .filter ( m -> m.getId ( ).equals ( vehicleDetails.getMainImageId ( ) ) )
+                        .map ( mediaFileMapper::toResponse )
+                        .findFirst ( )
+                        .orElse ( null )
+        );
         return vehicleDetailResponse;
     }
 
@@ -95,7 +105,7 @@ public class VehicleMapper {
         if ( request.getModel ( ) != null ) {
             vehicleDetails.setModel ( request.getModel ( ) );
         }
-        if(request.getEngineType() != null) {
+        if ( request.getEngineType ( ) != null ) {
             vehicleDetails.setEngineType ( request.getEngineType ( ) );
         }
 
@@ -129,7 +139,15 @@ public class VehicleMapper {
         if ( request.getInsuPolicy ( ) != null ) {
             vehicleDetails.setInsuPolicy ( request.getInsuPolicy ( ) );
         }
-
+        if ( request.getMainImageId ( ) != null ) {
+            vehicleDetails.setMainImageId ( request.getMainImageId ( ) );
+        }
+        if ( request.getVehicleColor ( ) != null ) {
+            vehicleDetails.setVehicleColor ( request.getVehicleColor ( ) );
+        }
+        if(request.getVehicleType ()!=null){
+            vehicleDetails.setVehicleType(request.getVehicleType());
+        }
     }
 }
 

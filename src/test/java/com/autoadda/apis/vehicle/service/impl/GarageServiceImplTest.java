@@ -2,8 +2,6 @@ package com.autoadda.apis.vehicle.service.impl;
 
 import com.autoadda.apis.vehicle.dao.*;
 import com.autoadda.apis.vehicle.entity.*;
-import com.service.vehicle.dao.*;
-import com.service.vehicle.entity.*;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 
 import com.autoadda.apis.vehicle.mapper.GarageV2Mapper;

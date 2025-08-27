@@ -32,6 +32,7 @@ public class VehicleRegistrationRequest {
     private String state;
     private String number;
     private String vehicleColor;
+    private String brandRequestReferenceId;
     private String nickName;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate regExpiry;
@@ -42,5 +43,6 @@ public class VehicleRegistrationRequest {
     private Long mulkiaImageFront;
     private Long mulkiaImageBack;
     private List<Long> vehicleImages;
+    private Long mainImageId;
 
 }
