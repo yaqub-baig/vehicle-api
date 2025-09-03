@@ -30,8 +30,7 @@ public class VehicleSale {
 
     private Double salePrice;
 
-    @OneToOne
-    private Customer buyer;
+    private String buyerName;
 
     private String paymentMode; // e.g., CASH, CREDIT, LOAN
 

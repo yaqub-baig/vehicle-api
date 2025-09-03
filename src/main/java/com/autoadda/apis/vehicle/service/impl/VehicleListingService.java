@@ -1,4 +1,4 @@
-package com.autoadda.apis.vehicle.service;
+package com.autoadda.apis.vehicle.service.impl;
 
 import com.autoadda.apis.vehicle.dao.VehicleDetailsRepository;
 import com.autoadda.apis.vehicle.dao.VehicleListingRepository;
@@ -6,16 +6,21 @@ import com.autoadda.apis.vehicle.entity.VehicleListing;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.mapper.VehicleListingMapper;
 import com.autoadda.apis.vehicle.request.VehicleListingRequest;
+import com.autoadda.apis.vehicle.request.VehicleSearchCriteria;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.response.VehicleListingResponse;
+import com.autoadda.apis.vehicle.util.Status;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class VehicleListingService {
     private final VehicleListingRepository vehicleListingRepository;
     private final VehicleDetailsRepository vehicleDetailsRepository;
@@ -27,22 +32,62 @@ public class VehicleListingService {
         VehicleListing listedVehicle = vehicleListingRepository.save ( vehicleListing );
         return GenericResponse.builder ( ).code ( "200" ).status ( "success" ).message ( "Vehicle listed successfully" ).body ( vehicleListingMapper.entityToResponse ( listedVehicle ) ).build ( );
     }
+    public GenericResponse getVehicleListings(VehicleSearchCriteria criteria) {
+        try {
+            List<VehicleListing> vehicles = findVehiclesByCriteria(criteria);
 
-    public GenericResponse getVehicleListings(String location) {
-        if(location!=null&& !location.isBlank ()){
-            List<VehicleListing> byCity = vehicleListingRepository.findByCity ( location );
-            List<VehicleListingResponse> vehicleListingResponseStream = byCity.stream ( ).map ( vehicleListingMapper::entityToResponse ).toList();
-            return GenericResponse.builder().body(vehicleListingResponseStream).code("200").message("success").build();
+            if (vehicles.isEmpty()) {
+                return GenericResponse.builder()
+                        .body(Collections.emptyList())
+                        .code("200")
+                        .message("No vehicles found matching the criteria")
+                        .build();
+            }
+
+            List<VehicleListingResponse> responseList = vehicles.stream()
+//                    .sorted( Comparator.comparing(VehicleListing::getCreatedAt).reversed())
+//                    .filter(vehicleListing -> !vehicleListing.getStatus().equals(Status.REMOVED))
+                    .map(vehicleListingMapper::entityToResponse)
+                    .toList();
+
+            return GenericResponse.builder()
+                    .body(responseList)
+                    .code("200")
+                    .message("success")
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error fetching vehicle listings: {}", e.getMessage(), e);
+            return GenericResponse.builder()
+                    .body( Collections.emptyList())
+                    .code("500")
+                    .message("Error occurred while fetching vehicle listings")
+                    .build();
         }
-        else{
-            List<VehicleListing> vehicleListings = vehicleListingRepository.findAll ( ).stream ().sorted ( ( v1, v2 ) -> v2.getCreatedAt ( ).compareTo ( v1.getCreatedAt ( ) ) ).toList ( );
-            List<VehicleListingResponse> vehicleListingResponseStream = vehicleListings.stream ( ).map ( vehicleListingMapper::entityToResponse ).toList();
-            return GenericResponse.builder ( ).body ( vehicleListingResponseStream ).code ( "200" ).message ( "success" ).build ( );
+    }
+
+    private List<VehicleListing> findVehiclesByCriteria(VehicleSearchCriteria criteria) {
+        if (criteria.hasGlobalSearch() && !criteria.hasSpecificCriteria()) {
+            return vehicleListingRepository.findByAdvancedSearch(criteria.getGlobalSearch());
+        }
+
+        // Check if any search criteria is provided
+        if (criteria.hasAnyCriteria()) {
+            return vehicleListingRepository.findByCriteria(criteria);
+        } else {
+            // Return all active vehicles sorted by creation date (newest first)
+            return vehicleListingRepository.findAllByOrderByCreatedAtDesc();
         }
     }
 
     public GenericResponse getVehicleListingById(Integer id) {
-        return GenericResponse.builder ( ).status ( "success" ).code ( "200" ).message ( "vehicle retrieved successfully" ).body ( vehicleListingRepository.findById ( id ).map ( vehicleListingMapper::entityToResponse ).orElseThrow ( () -> new ResourceNotFoundException ( "invalid vehicle listing id" ) ) ).build ( );
+        return GenericResponse.builder ( ).status ( "success" )
+                .code ( "200" )
+                .message ( "vehicle retrieved successfully" )
+                .body ( vehicleListingRepository.findById ( id )
+                .map ( vehicleListingMapper::entityToResponse )
+                .orElseThrow ( () -> new ResourceNotFoundException ( "invalid vehicle listing id" ) ) )
+                .build ( );
     }
 
     public GenericResponse getVehicleListingsByUserId(Integer userId) {
@@ -61,6 +106,9 @@ public class VehicleListingService {
         }
         if(vehicleListingRequest.getPrice ()!=null){
             vehicleListing.setPrice ( vehicleListingRequest.getPrice ( ) );
+        }
+        if(vehicleListingRequest.getStatus ()!=null){
+            vehicleListing.setStatus ( Status.valueOf ( vehicleListingRequest.getStatus ( ).toUpperCase ( ) ));
         }
         VehicleListing save = vehicleListingRepository.save ( vehicleListing );
         VehicleListingResponse body = vehicleListingMapper.entityToResponse ( save );

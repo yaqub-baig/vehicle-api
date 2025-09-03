@@ -7,8 +7,10 @@ import com.autoadda.apis.vehicle.entity.VehicleListing;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.mapper.VehicleListingMapper;
 import com.autoadda.apis.vehicle.request.VehicleListingRequest;
+import com.autoadda.apis.vehicle.request.VehicleSearchCriteria;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.response.VehicleListingResponse;
+import com.autoadda.apis.vehicle.service.impl.VehicleListingService;
 import com.autoadda.apis.vehicle.util.Status;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,7 @@ class VehicleListingServiceTest {
     private VehicleDetails vehicleDetails;
     private VehicleListingResponse vehicleListingResponse;
     private VehicleListingRequest updateRequest;
+    private VehicleSearchCriteria searchCriteria;
 
     @BeforeEach
     void setUp() {
@@ -62,6 +65,10 @@ class VehicleListingServiceTest {
         updateRequest.setPrice(12000.0);
         updateRequest.setDescription("Updated description");
         updateRequest.setCity("Indore");
+
+        searchCriteria = new VehicleSearchCriteria();
+        searchCriteria.setLocation ("Bhopal");
+        searchCriteria.setPrice(10000.0);
 
         vehicleDetails = new VehicleDetails();
         vehicleDetails.setId(vehicleId);
@@ -128,14 +135,14 @@ class VehicleListingServiceTest {
     }
 
     @Test
-    void getVehicleListings_WithLocation_ShouldReturnFilteredListings() {
+    void getVehicleListings_WithCriteria_ShouldReturnFilteredListings() {
         // Arrange
         List<VehicleListing> vehicleListings = Arrays.asList(vehicleListing);
-        when(vehicleListingRepository.findByCity(city)).thenReturn(vehicleListings);
+        when(vehicleListingRepository.findByCriteria(searchCriteria)).thenReturn(vehicleListings);
         when(vehicleListingMapper.entityToResponse(any(VehicleListing.class))).thenReturn(vehicleListingResponse);
 
         // Act
-        GenericResponse response = vehicleListingService.getVehicleListings(city);
+        GenericResponse response = vehicleListingService.getVehicleListings(searchCriteria);
 
         // Assert
         assertNotNull(response);
@@ -146,24 +153,25 @@ class VehicleListingServiceTest {
         List<?> bodyList = (List<?>) response.getBody();
         assertEquals(1, bodyList.size());
 
-        verify(vehicleListingRepository, times(1)).findByCity(city);
-        verify(vehicleListingRepository, never()).findAll();
+        verify(vehicleListingRepository, times(1)).findByCriteria(searchCriteria);
         verify(vehicleListingMapper, times(1)).entityToResponse(any(VehicleListing.class));
     }
 
     @Test
-    void getVehicleListings_WithoutLocation_ShouldReturnAllListingsSorted() {
+    void getVehicleListings_WithoutCriteria_ShouldReturnAllListingsSorted() {
         // Arrange
+        VehicleSearchCriteria emptyCriteria = new VehicleSearchCriteria();
+
         VehicleListing olderListing = new VehicleListing();
         olderListing.setId(2);
         olderListing.setCreatedAt(LocalDateTime.now().minusDays(1));
 
         List<VehicleListing> vehicleListings = Arrays.asList(olderListing, vehicleListing);
-        when(vehicleListingRepository.findAll()).thenReturn(vehicleListings);
+        when(vehicleListingRepository.findAllByOrderByCreatedAtDesc()).thenReturn(vehicleListings);
         when(vehicleListingMapper.entityToResponse(any(VehicleListing.class))).thenReturn(vehicleListingResponse);
 
         // Act
-        GenericResponse response = vehicleListingService.getVehicleListings(null);
+        GenericResponse response = vehicleListingService.getVehicleListings(emptyCriteria);
 
         // Assert
         assertNotNull(response);
@@ -174,29 +182,29 @@ class VehicleListingServiceTest {
         List<?> bodyList = (List<?>) response.getBody();
         assertEquals(2, bodyList.size());
 
-        verify(vehicleListingRepository, times(1)).findAll();
-        verify(vehicleListingRepository, never()).findByCity(any());
+        verify(vehicleListingRepository, times(1)).findAllByOrderByCreatedAtDesc();
         verify(vehicleListingMapper, times(2)).entityToResponse(any(VehicleListing.class));
     }
 
     @Test
     void getVehicleListings_WhenNoListingsExist_ShouldReturnEmptyList() {
         // Arrange
-        when(vehicleListingRepository.findAll()).thenReturn(Collections.emptyList());
+        VehicleSearchCriteria emptyCriteria = new VehicleSearchCriteria();
+        when(vehicleListingRepository.findAllByOrderByCreatedAtDesc()).thenReturn(Collections.emptyList());
 
         // Act
-        GenericResponse response = vehicleListingService.getVehicleListings(null);
+        GenericResponse response = vehicleListingService.getVehicleListings(emptyCriteria);
 
         // Assert
         assertNotNull(response);
         assertEquals("200", response.getCode());
-        assertEquals("success", response.getMessage());
+        assertEquals("No vehicles found matching the criteria", response.getMessage());
         assertNotNull(response.getBody());
 
         List<?> bodyList = (List<?>) response.getBody();
         assertTrue(bodyList.isEmpty());
 
-        verify(vehicleListingRepository, times(1)).findAll();
+        verify(vehicleListingRepository, times(1)).findAllByOrderByCreatedAtDesc();
         verify(vehicleListingMapper, never()).entityToResponse(any(VehicleListing.class));
     }
 

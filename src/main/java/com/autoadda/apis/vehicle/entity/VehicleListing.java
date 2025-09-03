@@ -25,6 +25,7 @@ public class VehicleListing {
     private String description;
     private String city;
     private LocalDate listedDate;
+
     @OneToOne(mappedBy = "vehicleListing", cascade = CascadeType.ALL)
     private VehicleSale sale;
     @Enumerated(EnumType.STRING)

@@ -146,4 +146,15 @@ public class VehicleServiceImpl implements VehicleService {
         vehicleRepository.save ( vehicleDetails );
         return GenericResponse.builder ( ).body ( "Vehicle deleted" ).code ( "200" ).message ( "success" ).status ( "success" ).build ( );
     }
+
+    @Override
+    public VehicleDetailResponse getVehicleDetailsByVehicleIdForIsc(Integer vehicleId) {
+        VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
+        if ( vehicleDetails.isDeleted ( ) ) {
+            throw new ResourceNotFoundException ( "Vehicle deleted" );
+        }
+
+        return vehicleMapper.toResponse ( vehicleDetails );
+
+    }
 }
