@@ -11,9 +11,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class UserResponse {
     private Integer id;
-    private String firstName;
-    private String lastName;
+    private String name;
     private String email;
     private String mobileNumber;
-    private Boolean isVerified;
+    private boolean isVerified;
 }

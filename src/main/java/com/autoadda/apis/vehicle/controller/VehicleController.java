@@ -2,6 +2,7 @@ package com.autoadda.apis.vehicle.controller;
 
 import com.autoadda.apis.vehicle.request.VehicleRegistrationRequest;
 import com.autoadda.apis.vehicle.response.GenericResponse;
+import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
 import com.autoadda.apis.vehicle.service.VehicleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,10 +35,17 @@ public class VehicleController {
         return vehicleService.getVehicleDetailsByVehicleId ( vehicleId );
     }
 
+    //isc  --> inter service communication
+    @GetMapping("/isc/{vehicleId}")
+    public VehicleDetailResponse getVehicleDetailsByIdResponse(
+            @PathVariable Integer vehicleId) {
+        return vehicleService.getVehicleDetailsByVehicleIdForIsc ( vehicleId );
+    }
+
     @GetMapping("images/{vehicleId}")
     public GenericResponse getVehicleImagesById(
-                                                @PathVariable Integer vehicleId) {
-        return vehicleService.getVehicleImagesByVehicleId ( vehicleId);
+            @PathVariable Integer vehicleId) {
+        return vehicleService.getVehicleImagesByVehicleId ( vehicleId );
     }
 
     @PutMapping

@@ -34,11 +34,7 @@ public class OldProfileServiceImpl implements OldProfileService {
 
 
     private final ServiceTransformer platformProfileTransformer;
-
-
     private final ServiceValidator serviceValidator;
-
-
     private final GarageLicenseDetailsRepository garageLicenseDetailsRepository;
 
 
