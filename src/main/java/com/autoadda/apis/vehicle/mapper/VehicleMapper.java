@@ -1,6 +1,7 @@
 package com.autoadda.apis.vehicle.mapper;
 
-import com.autoadda.apis.vehicle.config.IdentityClient;
+import com.autoadda.apis.vehicle.clients.IdentityClient;
+import com.autoadda.apis.vehicle.clients.PartClient;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.request.VehicleRegistrationRequest;
 import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
@@ -14,7 +15,7 @@ import java.util.Optional;
 @Component
 @RequiredArgsConstructor
 public class VehicleMapper {
-
+    private final PartClient partClient;
     private final MediaFileMapper mediaFileMapper;
     private final IdentityClient identityClient;
     public VehicleDetails toEntity(VehicleRegistrationRequest request) {
@@ -94,6 +95,7 @@ public class VehicleMapper {
                         .orElse ( null )
         );
         vehicleDetailResponse.setOwner ( identityClient.getUser ( vehicleDetails.getCustomerId ( ) ) );
+//        vehicleDetailResponse.setBrandOnboardResponse ( partClient.getBrandById ( vehicleDetails.getBrandRequestReferenceId () ).getBody ());
         return vehicleDetailResponse;
     }
 

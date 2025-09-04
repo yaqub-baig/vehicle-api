@@ -1,4 +1,4 @@
-package com.autoadda.apis.vehicle.config;
+package com.autoadda.apis.vehicle.clients;
 
 import com.autoadda.apis.vehicle.response.UserResponse;
 import org.springframework.cloud.openfeign.FeignClient;
