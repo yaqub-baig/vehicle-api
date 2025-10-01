@@ -15,8 +15,12 @@ import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
 import com.autoadda.apis.vehicle.service.VehicleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -102,41 +106,32 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
+    @Transactional
     public GenericResponse updateVehicleDetails(Integer vehicleId, VehicleRegistrationRequest request, String userId) {
-        VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
-        Long prevId = null;
-        vehicleMapper.updateEntity ( vehicleDetails, request );
-        if ( request.getMulkiaImageFront ( ) != null && ! vehicleDetails.getMulkiaImageFront ( ).getId ( ).equals ( request.getMulkiaImageFront ( ) ) ) {
-            MediaFile front = mediaFileRepository.findById ( request.getMulkiaImageFront ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) );
-            log.info ( "-----------1" );
-            prevId = vehicleDetails.getMulkiaImageFront ( ).getId ( );
-            log.info ( "-----------2" );
-            vehicleDetails.setMulkiaImageFront ( null );
-            log.info ( "-----------3" );
-            vehicleDetails.setMulkiaImageFront ( front );
-            log.info ( "-----------4" );
-            mediaFileRepository.deleteById ( prevId );
-            log.info ( "-----------5" );
-        }
-        if ( request.getMulkiaImageBack ( ) != null && ! vehicleDetails.getMulkiaImageBack ( ).getId ( ).equals ( request.getMulkiaImageBack ( ) ) ) {
-            MediaFile back = mediaFileRepository.findById ( request.getMulkiaImageBack ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) );
-            prevId = vehicleDetails.getMulkiaImageBack ( ).getId ( );
-            vehicleDetails.setMulkiaImageBack ( null );
-            vehicleDetails.setMulkiaImageBack ( back );
-            mediaFileRepository.deleteById ( prevId );
+        VehicleDetails existing = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: " + vehicleId));
+
+        vehicleMapper.updateEntity(existing, request);
+
+        List<Long> filesToCleanup = new ArrayList<>();
+
+        handleMulkiaImageFront(request, existing, filesToCleanup);
+        handleMulkiaImageBack(request, existing, filesToCleanup);
+        handleVehicleImages(request, existing, filesToCleanup);
+
+        VehicleDetails save = vehicleRepository.save(existing);
+
+        if (!filesToCleanup.isEmpty()) {
+            scheduleMediaFileCleanup(filesToCleanup);
         }
 
-        if ( request.getVehicleImages ( ) != null ) {
-            log.info ( "1         Vehicle images size: {}", request.getVehicleImages ( ).size ( ) );
-            vehicleDetails.getVehicleImages ( ).clear ( );
-            List<MediaFile> vehicleImages = request.getVehicleImages ( ).stream ( )
-                    .map ( id -> mediaFileRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) ) ).collect ( Collectors.toList ( ) );
-            log.info ( "2 ------>Vehicle images size: {}", vehicleImages.size ( ) );
-            vehicleDetails.getVehicleImages ( ).addAll ( vehicleImages );
-        }
-        VehicleDetails save = vehicleRepository.save ( vehicleDetails );
-        VehicleDetailResponse response = vehicleMapper.toResponse ( save );
-        return GenericResponse.builder ( ).body ( response ).code ( "200" ).message ( "success" ).status ( "success" ).build ( );
+        VehicleDetailResponse response = vehicleMapper.toResponse(save);
+        return GenericResponse.builder()
+                .body(response)
+                .code("200")
+                .message("success")
+                .status("success")
+                .build();
     }
 
     @Override
@@ -156,5 +151,82 @@ public class VehicleServiceImpl implements VehicleService {
 
         return vehicleMapper.toResponse ( vehicleDetails );
 
+    }
+
+    private void handleMulkiaImageFront(VehicleRegistrationRequest request, VehicleDetails existing, List<Long> filesToCleanup) {
+        if (request.getMulkiaImageFront() != null) {
+            Long prevImageId = existing.getMulkiaImageFront() != null ? existing.getMulkiaImageFront().getId() : null;
+            MediaFile mediaFile = mediaFileRepository.findById(request.getMulkiaImageFront())
+                    .orElseThrow(() -> new ResourceNotFoundException("Mulkia front image not found"));
+            existing.setMulkiaImageFront(mediaFile);
+
+            if (prevImageId != null && !prevImageId.equals(mediaFile.getId())) {
+                filesToCleanup.add(prevImageId);
+            }
+        }
+    }
+
+    private void handleMulkiaImageBack(VehicleRegistrationRequest request, VehicleDetails existing, List<Long> filesToCleanup) {
+        if (request.getMulkiaImageBack() != null) {
+            Long prevImageId = existing.getMulkiaImageBack() != null ? existing.getMulkiaImageBack().getId() : null;
+            MediaFile mediaFile = mediaFileRepository.findById(request.getMulkiaImageBack())
+                    .orElseThrow(() -> new ResourceNotFoundException("Mulkia back image not found"));
+            existing.setMulkiaImageBack(mediaFile);
+
+            if (prevImageId != null && !prevImageId.equals(mediaFile.getId())) {
+                filesToCleanup.add(prevImageId);
+            }
+        }
+    }
+
+    private void handleVehicleImages(VehicleRegistrationRequest request, VehicleDetails existing, List<Long> filesToCleanup) {
+        if (request.getVehicleImages() != null && !request.getVehicleImages().isEmpty()) {
+            List<Long> oldVehicleImageIds = existing.getVehicleImages().stream()
+                    .map(MediaFile::getId)
+                    .toList();
+            if (!oldVehicleImageIds.isEmpty()) {
+                filesToCleanup.addAll(oldVehicleImageIds);
+            }
+
+            List<MediaFile> newVehicleImages = new ArrayList<>();
+            request.getVehicleImages().forEach(imageId -> {
+                MediaFile mediaFile = mediaFileRepository.findById(imageId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Vehicle image not found"));
+                newVehicleImages.add(mediaFile);
+            });
+            existing.setVehicleImages(newVehicleImages);
+        }
+    }
+
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void scheduleMediaFileCleanup(List<Long> mediaFileIds) {
+        try {
+            Thread.sleep(3000);
+
+            for (Long fileId : mediaFileIds) {
+                try {
+                    if (!isMediaFileStillReferenced(fileId)) {
+                        mediaFileRepository.deleteById(fileId);
+                        log.info("Successfully cleaned up media file: {}", fileId);
+                    } else {
+                        log.info("Media file {} still referenced, skipping cleanup", fileId);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to cleanup media file {}: {}", fileId, e.getMessage());
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Media file cleanup interrupted");
+        }
+    }
+
+    private boolean isMediaFileStillReferenced(Long mediaFileId) {
+        long mulkiaFrontCount = vehicleRepository.countByMulkiaImageFrontId(mediaFileId);
+        long mulkiaBackCount = vehicleRepository.countByMulkiaImageBackId(mediaFileId);
+        long vehicleImageCount = vehicleRepository.countByVehicleImageId(mediaFileId);
+        long totalReferences = mulkiaFrontCount + mulkiaBackCount + vehicleImageCount;
+        return totalReferences > 0;
     }
 }

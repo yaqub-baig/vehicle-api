@@ -26,4 +26,11 @@ public interface VehicleDetailsRepository extends JpaRepository<VehicleDetails, 
 	List<MediaFile> findImagesByVehicleId(@Param("vehicleId") Integer vehicleId);
 
 	Optional<VehicleDetails> findByChassisNo(String chassisNo);
+
+	long countByMulkiaImageFrontId(Long mediaFileId);
+
+	long countByMulkiaImageBackId(Long mediaFileId);
+
+	@Query("SELECT COUNT(v) FROM VehicleDetails v JOIN v.vehicleImages img WHERE img.id = :mediaFileId")
+	long countByVehicleImageId(@Param("mediaFileId") Long mediaFileId);
 }
