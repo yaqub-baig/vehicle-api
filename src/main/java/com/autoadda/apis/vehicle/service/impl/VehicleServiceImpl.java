@@ -194,7 +194,9 @@ public class VehicleServiceImpl implements VehicleService {
                         .orElseThrow(() -> new ResourceNotFoundException("Vehicle image not found"));
                 newVehicleImages.add(mediaFile);
             });
-            existing.setVehicleImages(newVehicleImages);
+
+            existing.getVehicleImages().clear();
+            existing.getVehicleImages().addAll(newVehicleImages);
         }
     }
 
