@@ -17,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MediaFileController {
     private final MediaFileService mediaFileService;
-    @PostMapping("/upload")
+    @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
     public List<MediaFile> upload(@RequestPart("files") List<MultipartFile> files) throws IOException {
         if ( files.stream ( ).anyMatch ( f -> f.getSize ( ) > 10 * 1024 * 1024 ) ) {
             throw new IllegalArgumentException ( "File size must be less than 10MB" );

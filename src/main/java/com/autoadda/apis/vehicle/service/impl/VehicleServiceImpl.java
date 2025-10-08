@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -118,7 +118,6 @@ public class VehicleServiceImpl implements VehicleService {
         handleMulkiaImageFront(request, existing, filesToCleanup);
         handleMulkiaImageBack(request, existing, filesToCleanup);
         handleVehicleImages(request, existing, filesToCleanup);
-
         VehicleDetails save = vehicleRepository.save(existing);
 
         if (!filesToCleanup.isEmpty()) {
@@ -148,7 +147,6 @@ public class VehicleServiceImpl implements VehicleService {
         if ( vehicleDetails.isDeleted ( ) ) {
             throw new ResourceNotFoundException ( "Vehicle deleted" );
         }
-
         return vehicleMapper.toResponse ( vehicleDetails );
 
     }
