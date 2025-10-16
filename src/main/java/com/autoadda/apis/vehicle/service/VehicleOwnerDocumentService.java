@@ -61,6 +61,7 @@ public class VehicleOwnerDocumentService {
     public GenericResponse updateVehicleOwnerDocument(Integer vehicleOwnerId, VehicleOwnerDocumentRequest vehicleOwnerDocumentRequest) {
         VehicleOwnerDocumentation documentation;
         documentation = vehicleDocumentRepository.findByVehicleOwnerId ( vehicleOwnerId ).orElse (  new VehicleOwnerDocumentation ( ) );
+        documentation.setVehicleOwnerId ( vehicleOwnerId );
         if ( vehicleOwnerDocumentRequest.getDrivingLicenceId ( ) != null ) {
             MediaFile drivingLicence = mediaFileRepository.findById ( vehicleOwnerDocumentRequest.getDrivingLicenceId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "driving licence image not found" ) );
             documentation.setDrivingLicence ( drivingLicence );
