@@ -1,5 +1,6 @@
 package com.autoadda.apis.vehicle.response;
 
+import com.autoadda.apis.vehicle.entity.MediaFile;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,5 +15,6 @@ public class UserResponse {
     private String name;
     private String email;
     private String mobileNumber;
+    private MediaFile profileImage;
     private boolean isVerified;
 }
