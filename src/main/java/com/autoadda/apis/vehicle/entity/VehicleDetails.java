@@ -101,7 +101,7 @@ public class VehicleDetails {
     private List<MediaFile> vehicleImages;
     @Column(name = "main_image_id")
     private Long mainImageId;
-
+    private Long companyId;
     private Integer customerId;
     private LocalDateTime createdAt;
 

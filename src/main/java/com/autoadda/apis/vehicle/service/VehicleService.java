@@ -18,4 +18,6 @@ public interface VehicleService {
     GenericResponse deleteVehicleDetails(Integer vehicleId, String userId);
 
     VehicleDetailResponse getVehicleDetailsByVehicleIdForIsc(Integer vehicleId);
+
+    GenericResponse getVehiclesByCompanyId(Long companyId);
 }

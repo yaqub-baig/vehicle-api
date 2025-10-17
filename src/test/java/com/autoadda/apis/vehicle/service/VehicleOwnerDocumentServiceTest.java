@@ -9,6 +9,7 @@ import com.autoadda.apis.vehicle.entity.VehicleOwnerDocumentation;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.request.VehicleOwnerDocumentRequest;
 import com.autoadda.apis.vehicle.response.GenericResponse;
+import com.autoadda.apis.vehicle.service.impl.VehicleOwnerDocumentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -18,7 +18,6 @@ public class VehicleController {
     @PostMapping("/add")
     public GenericResponse addVehicleDetails(@RequestBody VehicleRegistrationRequest request,
                                              @RequestHeader(value = "X-Auto-Adda-Id") String autoAddaId) {
-
         return vehicleService.addVehicleDetails ( request, autoAddaId );
     }
 
@@ -61,4 +60,8 @@ public class VehicleController {
         return vehicleService.deleteVehicleDetails ( vehicleId, userId );
     }
 
+    @GetMapping("/{companyId}/company")
+    public GenericResponse getVehicleDetailsByCompanyId(@PathVariable Long companyId) {
+        return vehicleService.getVehiclesByCompanyId ( companyId );
+    }
 }

@@ -1,4 +1,4 @@
-package com.autoadda.apis.vehicle.service;
+package com.autoadda.apis.vehicle.service.impl;
 
 import com.autoadda.apis.vehicle.dao.MediaFileRepository;
 import com.autoadda.apis.vehicle.dao.VehicleOwnerDocumentRepository;

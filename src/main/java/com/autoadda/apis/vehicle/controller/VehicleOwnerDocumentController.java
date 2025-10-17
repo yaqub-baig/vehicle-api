@@ -2,7 +2,7 @@ package com.autoadda.apis.vehicle.controller;
 
 import com.autoadda.apis.vehicle.request.VehicleOwnerDocumentRequest;
 import com.autoadda.apis.vehicle.response.GenericResponse;
-import com.autoadda.apis.vehicle.service.VehicleOwnerDocumentService;
+import com.autoadda.apis.vehicle.service.impl.VehicleOwnerDocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 

@@ -33,4 +33,6 @@ public interface VehicleDetailsRepository extends JpaRepository<VehicleDetails, 
 
 	@Query("SELECT COUNT(v) FROM VehicleDetails v JOIN v.vehicleImages img WHERE img.id = :mediaFileId")
 	long countByVehicleImageId(@Param("mediaFileId") Long mediaFileId);
+
+    List<VehicleDetails> findByCompanyId(Long companyId);
 }

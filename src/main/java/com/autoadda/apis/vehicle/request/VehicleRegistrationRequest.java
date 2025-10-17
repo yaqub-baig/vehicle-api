@@ -32,6 +32,7 @@ public class VehicleRegistrationRequest {
     private String state;
     private String number;
     private String vehicleColor;
+    private Long companyId;
     private String brandRequestReferenceId;
     private String nickName;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")

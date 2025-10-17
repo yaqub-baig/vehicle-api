@@ -43,7 +43,10 @@ public class VehicleServiceImpl implements VehicleService {
         }
         VehicleDetails entity = vehicleMapper.toEntity ( request );
         entity.setCustomerId ( Integer.parseInt ( autoAddaId ) );
-
+        if(request.getCompanyId ()!=null)
+        {
+            entity.setCompanyId ( request.getCompanyId ( ) );
+        }
         if ( request.getMulkiaImageFront ( ) != null ) {
             MediaFile mulkiaImageFront = mediaFileRepository.findById ( request.getMulkiaImageFront ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Mulkia image not found" ) );
             entity.setMulkiaImageFront ( mulkiaImageFront );
@@ -148,6 +151,24 @@ public class VehicleServiceImpl implements VehicleService {
             throw new ResourceNotFoundException ( "Vehicle deleted" );
         }
         return vehicleMapper.toResponse ( vehicleDetails );
+
+    }
+
+    @Override
+    public GenericResponse getVehiclesByCompanyId(Long companyId) {
+        List<VehicleDetails> byCompanyId = vehicleRepository.findByCompanyId(companyId);
+
+        List<VehicleDetailResponse> list1 = byCompanyId.stream ( )
+                .sorted ( (o1, o2) -> o2.getId ( ).compareTo ( o1.getId ( ) ) )
+                .filter ( vehicleDetails -> ! vehicleDetails.isDeleted ( ) )
+                .map ( vehicleMapper::toResponse ).toList ( );
+
+        return GenericResponse.builder ( )
+                .body ( list1 )
+                .code ( "200" )
+                .message (list1.isEmpty ()? "No vehicles found" : "success" )
+                .status ( "success" )
+                .build ( );
 
     }
 
