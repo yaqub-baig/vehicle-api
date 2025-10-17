@@ -63,7 +63,7 @@ public class CompanyService {
 
     public GenericResponse getCompanyById(Long id) {
         Company byId = companyRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( COMPANY_NOT_FOUND ) );
-        if ( byId.getIsActive ( ) ) {
+        if ( ! byId.getIsActive ( ) ) {
             return GenericResponse.builder ( ).code ( "200" ).status ( SUCCESS ).message ( "Company is not Active" ).build ( );
         }
         return GenericResponse.builder ( )
@@ -97,7 +97,7 @@ public class CompanyService {
 
     public GenericResponse getCompanyByOwnerId(Integer id) {
         Company byId = companyRepository.findByCompanyOwnerId ( id ).orElseThrow ( () -> new ResourceNotFoundException ( COMPANY_NOT_FOUND ) );
-        if ( byId.getIsActive ( ) ) {
+        if (! byId.getIsActive ( ) ) {
             return GenericResponse.builder ( ).code ( "200" ).status ( SUCCESS ).message ( "Company is not Active" ).build ( );
         }
         return GenericResponse.builder ( )
