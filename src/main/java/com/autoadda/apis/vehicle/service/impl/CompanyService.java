@@ -94,4 +94,18 @@ public class CompanyService {
         companyRepository.save ( company );
         return GenericResponse.builder ( ).code ( "200" ).status ( SUCCESS ).message ( "Company deleted successfully" ).build ( );
     }
+
+    public GenericResponse getCompanyByOwnerId(Integer id) {
+        Company byId = companyRepository.findByCompanyOwnerId ( id ).orElseThrow ( () -> new ResourceNotFoundException ( COMPANY_NOT_FOUND ) );
+        if ( byId.getIsActive ( ) ) {
+            return GenericResponse.builder ( ).code ( "200" ).status ( SUCCESS ).message ( "Company is not Active" ).build ( );
+        }
+        return GenericResponse.builder ( )
+                .body ( companyMapper.toResponse ( byId ) )
+                .code ( "200" )
+                .message ( SUCCESS )
+                .build ( );
+
+
+    }
 }

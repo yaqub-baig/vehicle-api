@@ -29,6 +29,12 @@ public class CompanyController {
         return companyService.getCompanyById ( id );
     }
 
+    @GetMapping("/{id}/owner")
+    public GenericResponse getCompanyByOwnerId(@PathVariable Integer id) {
+        return companyService.getCompanyByOwnerId ( id );
+    }
+
+
     @PutMapping("/{id}")
     public GenericResponse updateCompany(@PathVariable Long id, @RequestBody CompanyRequest companyRequest) {
         return companyService.updateCompany ( id, companyRequest );
