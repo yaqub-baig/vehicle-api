@@ -14,6 +14,4 @@ public class VehicleListingResponse {
     private String description;
     private VehicleDetailResponse vehicle;
     private String city;
-
-
 }

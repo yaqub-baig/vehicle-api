@@ -20,4 +20,8 @@ public interface VehicleService {
     VehicleDetailResponse getVehicleDetailsByVehicleIdForIsc(Integer vehicleId);
 
     GenericResponse getVehiclesByCompanyId(Long companyId);
+
+    GenericResponse getVehiclesByOwnerId(Long ownerId);
+
+    GenericResponse getCompanyVehiclesByOwnerId(Integer ownerId);
 }

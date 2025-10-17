@@ -60,8 +60,18 @@ public class VehicleController {
         return vehicleService.deleteVehicleDetails ( vehicleId, userId );
     }
 
-    @GetMapping("/{companyId}/company")
+    @GetMapping("/company/{companyId}")
     public GenericResponse getVehicleDetailsByCompanyId(@PathVariable Long companyId) {
         return vehicleService.getVehiclesByCompanyId ( companyId );
+    }
+
+    @GetMapping("/owner/{ownerId}")
+    public GenericResponse getVehicleDetailsByOwnerId(@PathVariable Long ownerId) {
+        return vehicleService.getVehiclesByOwnerId ( ownerId );
+    }
+
+    @GetMapping("/company-owner/{ownerId}")
+    public GenericResponse getCompanyVehiclesByOwnerId(@PathVariable Integer ownerId) {
+        return vehicleService.getCompanyVehiclesByOwnerId ( ownerId );
     }
 }

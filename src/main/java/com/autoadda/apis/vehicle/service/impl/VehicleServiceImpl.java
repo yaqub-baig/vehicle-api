@@ -1,8 +1,10 @@
 package com.autoadda.apis.vehicle.service.impl;
 
+import com.autoadda.apis.vehicle.dao.CompanyRepository;
 import com.autoadda.apis.vehicle.dao.MediaFileRepository;
 import com.autoadda.apis.vehicle.dao.UserRepository;
 import com.autoadda.apis.vehicle.dao.VehicleDetailsRepository;
+import com.autoadda.apis.vehicle.entity.Company;
 import com.autoadda.apis.vehicle.entity.MediaFile;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
@@ -34,6 +36,7 @@ public class VehicleServiceImpl implements VehicleService {
     private final MediaFileMapper mediaFileMapper;
     private final UserRepository userRepository;
     private final MediaFileRepository mediaFileRepository;
+    private final CompanyRepository companyRepository;
 
     @Override
     public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String autoAddaId) {
@@ -170,6 +173,53 @@ public class VehicleServiceImpl implements VehicleService {
                 .status ( "success" )
                 .build ( );
 
+    }
+
+    @Override
+    public GenericResponse getVehiclesByOwnerId(Long ownerId) {
+        List<VehicleDetails> byOwnerId = vehicleRepository.findByCustomerId(ownerId.intValue());
+
+        List<VehicleDetailResponse> list1 = byOwnerId.stream()
+                .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
+                .filter(vehicleDetails -> !vehicleDetails.isDeleted())
+                .map(vehicleMapper::toResponse).toList();
+
+        return GenericResponse.builder()
+                .body(list1)
+                .code("200")
+                .message(list1.isEmpty() ? "No vehicles found" : "success")
+                .status("success")
+                .build();
+    }
+
+    @Override
+    public GenericResponse getCompanyVehiclesByOwnerId(Integer ownerId) {
+        Optional<Company> companyOptional = companyRepository.findByCompanyOwnerId(ownerId);
+
+        if (companyOptional.isEmpty()) {
+            return GenericResponse.builder()
+                    .body(new ArrayList<>())
+                    .code("200")
+                    .message("No company found for this owner")
+                    .status("success")
+                    .build();
+        }
+
+        Company company = companyOptional.get();
+        List<VehicleDetails> companyVehicles = vehicleRepository.findByCompanyId(company.getId());
+
+        List<VehicleDetailResponse> vehicleResponses = companyVehicles.stream()
+                .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
+                .filter(vehicleDetails -> !vehicleDetails.isDeleted())
+                .map(vehicleMapper::toResponse)
+                .toList();
+
+        return GenericResponse.builder()
+                .body(vehicleResponses)
+                .code("200")
+                .message(vehicleResponses.isEmpty() ? "No vehicles found for this company" : "success")
+                .status("success")
+                .build();
     }
 
     private void handleMulkiaImageFront(VehicleRegistrationRequest request, VehicleDetails existing, List<Long> filesToCleanup) {

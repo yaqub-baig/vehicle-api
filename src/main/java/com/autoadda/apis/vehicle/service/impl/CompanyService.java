@@ -1,5 +1,6 @@
 package com.autoadda.apis.vehicle.service.impl;
 
+import com.autoadda.apis.vehicle.clients.IdentityClient;
 import com.autoadda.apis.vehicle.dao.CompanyRepository;
 import com.autoadda.apis.vehicle.entity.Company;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
@@ -7,6 +8,7 @@ import com.autoadda.apis.vehicle.mapper.CompanyMapper;
 import com.autoadda.apis.vehicle.request.CompanyRequest;
 import com.autoadda.apis.vehicle.response.CompanyResponse;
 import com.autoadda.apis.vehicle.response.GenericResponse;
+import com.autoadda.apis.vehicle.util.ERole;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,12 +24,14 @@ public class CompanyService {
     private static final String COMPANY_NOT_FOUND = "Company not found";
     private final CompanyRepository companyRepository;
     private final CompanyMapper companyMapper;
-
+    private final IdentityClient identityClient;
     @Transactional
     public GenericResponse createCompany(CompanyRequest companyRequest) {
         validateTradeLicense ( companyRequest );
         Company company = companyMapper.toEntity ( companyRequest );
-        CompanyResponse companyResponse = companyMapper.toResponse ( companyRepository.save ( company ) );
+        Company company1 = companyRepository.save ( company );
+        identityClient.updateRole ( company1.getCompanyOwnerId ( ), ERole.COMPANY_OWNER );
+        CompanyResponse companyResponse = companyMapper.toResponse ( company1 );
         return GenericResponse.builder ( )
                 .body ( companyResponse )
                 .code ( "200" )
