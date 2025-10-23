@@ -46,7 +46,7 @@ public class VehicleOwnerDocumentServiceTest {
         // Setup test data
         request = new VehicleOwnerDocumentRequest();
         request.setVehicleOwnerId(1);
-        request.setEmirateId(100L);
+        request.setEmiratesIdId(100L);
         request.setTradeLicenceId(200L);
         request.setDrivingLicenceId(300L);
 
@@ -226,7 +226,7 @@ public class VehicleOwnerDocumentServiceTest {
     @Test
     void updateVehicleOwnerDocument_partialUpdate_shouldUpdateOnlyProvidedFields() {
         // Arrange
-        request.setEmirateId(null); // Only update trade licence and driving licence
+        request.setEmiratesIdId(null); // Only update trade licence and driving licence
         request.setDrivingLicenceId(null); // Only update trade licence
 
         when(vehicleDocumentRepository.findByVehicleOwnerId(1)).thenReturn(Optional.of(documentation));
@@ -265,7 +265,7 @@ public class VehicleOwnerDocumentServiceTest {
     @Test
     void updateVehicleOwnerDocument_nullRequestFields_shouldNotThrowException() {
         // Arrange
-        request.setEmirateId(null);
+        request.setEmiratesIdId(null);
         request.setTradeLicenceId(null);
         request.setDrivingLicenceId(null);
 
@@ -286,7 +286,7 @@ public class VehicleOwnerDocumentServiceTest {
     @Test
     void uploadVehicleOwnerDocument_nullFiles_shouldSuccess() {
         // Arrange
-        request.setEmirateId(null);
+        request.setEmiratesIdId(null);
         request.setTradeLicenceId(null);
         request.setDrivingLicenceId(null);
 

@@ -43,5 +43,7 @@ public class VehicleDetailResponse {
 	private List<MediaFileResponse> vehicleImages;
 	private MediaFileResponse mainImage;
 	private UserResponse owner;
+    private Long companyId;
+    private CompanyResponse companyResponse;
 
 }

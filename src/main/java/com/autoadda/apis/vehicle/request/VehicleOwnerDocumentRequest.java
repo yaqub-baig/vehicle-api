@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 public class VehicleOwnerDocumentRequest {
     private Integer vehicleOwnerId;
     private Long tradeLicenceId;
-    private Long emirateId;
+    private Long emiratesIdId;
     private Long drivingLicenceId;
 }

@@ -11,6 +11,7 @@ import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.mapper.MediaFileMapper;
 import com.autoadda.apis.vehicle.mapper.VehicleMapper;
 import com.autoadda.apis.vehicle.request.VehicleRegistrationRequest;
+import com.autoadda.apis.vehicle.response.CompanyResponse;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.response.MediaFileResponse;
 import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
@@ -35,6 +36,7 @@ public class VehicleServiceImpl implements VehicleService {
     private final VehicleMapper vehicleMapper;
     private final MediaFileMapper mediaFileMapper;
     private final UserRepository userRepository;
+    private final CompanyService companyService;
     private final MediaFileRepository mediaFileRepository;
     private final CompanyRepository companyRepository;
 
@@ -79,7 +81,9 @@ public class VehicleServiceImpl implements VehicleService {
         List<VehicleDetailResponse> list1 = byCustomerMobileNumber.stream ( )
                 .sorted ( (o1, o2) -> o2.getId ( ).compareTo ( o1.getId ( ) ) )
                 .filter ( vehicleDetails -> ! vehicleDetails.isDeleted ( ) )
-                .map ( vehicleMapper::toResponse ).toList ( );
+                .map ( vehicleMapper::toResponse )
+                .map(this::addCompanyResponse)
+                .toList ( );
 
         return GenericResponse.builder ( )
                 .body ( list1 )
@@ -87,6 +91,15 @@ public class VehicleServiceImpl implements VehicleService {
                 .message ( "success" )
                 .status ( "success" )
                 .build ( );
+    }
+
+    private VehicleDetailResponse addCompanyResponse(VehicleDetailResponse vehicleDetailResponse) {
+
+        if (vehicleDetailResponse.getCompanyId()!=null) {
+            CompanyResponse company = companyService.getCompanyByIdV2(vehicleDetailResponse.getCompanyId());
+            vehicleDetailResponse.setCompanyResponse(company);
+        }
+        return vehicleDetailResponse;
     }
 
     @Override
@@ -97,7 +110,8 @@ public class VehicleServiceImpl implements VehicleService {
         }
 
         VehicleDetailResponse response = vehicleMapper.toResponse ( vehicleDetails );
-        return GenericResponse.builder ( ).body ( response )
+       VehicleDetailResponse responded=addCompanyResponse(response);
+        return GenericResponse.builder ( ).body ( responded )
                 .code ( "200" )
                 .message ( "success" ).build ( );
 
@@ -131,8 +145,9 @@ public class VehicleServiceImpl implements VehicleService {
         }
 
         VehicleDetailResponse response = vehicleMapper.toResponse(save);
+        VehicleDetailResponse responded=  addCompanyResponse(response);
         return GenericResponse.builder()
-                .body(response)
+                .body(responded)
                 .code("200")
                 .message("success")
                 .status("success")
@@ -164,7 +179,9 @@ public class VehicleServiceImpl implements VehicleService {
         List<VehicleDetailResponse> list1 = byCompanyId.stream ( )
                 .sorted ( (o1, o2) -> o2.getId ( ).compareTo ( o1.getId ( ) ) )
                 .filter ( vehicleDetails -> ! vehicleDetails.isDeleted ( ) )
-                .map ( vehicleMapper::toResponse ).toList ( );
+                .map ( vehicleMapper::toResponse )
+                .map(this::addCompanyResponse)
+                .toList ( );
 
         return GenericResponse.builder ( )
                 .body ( list1 )
@@ -182,7 +199,9 @@ public class VehicleServiceImpl implements VehicleService {
         List<VehicleDetailResponse> list1 = byOwnerId.stream()
                 .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
                 .filter(vehicleDetails -> !vehicleDetails.isDeleted())
-                .map(vehicleMapper::toResponse).toList();
+                .map(vehicleMapper::toResponse)
+                .map(this::addCompanyResponse)
+                .toList();
 
         return GenericResponse.builder()
                 .body(list1)
@@ -212,6 +231,7 @@ public class VehicleServiceImpl implements VehicleService {
                 .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
                 .filter(vehicleDetails -> !vehicleDetails.isDeleted())
                 .map(vehicleMapper::toResponse)
+                .map(this::addCompanyResponse)
                 .toList();
 
         return GenericResponse.builder()

@@ -22,8 +22,8 @@ public class VehicleOwnerDocumentService {
         VehicleOwnerDocumentation documentation = new VehicleOwnerDocumentation ( );
         documentation.setVehicleOwnerId ( vehicleOwnerDocumentRequest.getVehicleOwnerId ( ) );
 
-        if ( vehicleOwnerDocumentRequest.getEmirateId ( ) != null ) {
-            MediaFile emirateId = mediaFileRepository.findById ( vehicleOwnerDocumentRequest.getEmirateId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "emirate image not found" ) );
+        if ( vehicleOwnerDocumentRequest.getEmiratesIdId( ) != null ) {
+            MediaFile emirateId = mediaFileRepository.findById ( vehicleOwnerDocumentRequest.getEmiratesIdId( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "emirate image not found" ) );
             documentation.setEmiratesId ( emirateId );
 
         }
@@ -66,8 +66,8 @@ public class VehicleOwnerDocumentService {
             MediaFile drivingLicence = mediaFileRepository.findById ( vehicleOwnerDocumentRequest.getDrivingLicenceId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "driving licence image not found" ) );
             documentation.setDrivingLicence ( drivingLicence );
         }
-        if ( vehicleOwnerDocumentRequest.getEmirateId ( ) != null ) {
-            MediaFile emirateId = mediaFileRepository.findById ( vehicleOwnerDocumentRequest.getEmirateId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "emirate image not found" ) );
+        if ( vehicleOwnerDocumentRequest.getEmiratesIdId( ) != null ) {
+            MediaFile emirateId = mediaFileRepository.findById ( vehicleOwnerDocumentRequest.getEmiratesIdId( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "emirate image not found" ) );
             documentation.setEmiratesId ( emirateId );
 
         }

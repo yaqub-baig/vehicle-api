@@ -73,6 +73,13 @@ public class CompanyService {
                 .build ( );
     }
 
+    public CompanyResponse getCompanyByIdV2(Long id) {
+        Company byId = companyRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( COMPANY_NOT_FOUND ) );
+
+        return  companyMapper.toResponse ( byId );
+    }
+
+
     public GenericResponse updateCompany(Long id, CompanyRequest companyRequest) {
         Company companyFound = companyRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( COMPANY_NOT_FOUND ) );
         Company company = companyMapper.updateEntity ( companyFound, companyRequest );
