@@ -2,6 +2,7 @@ package com.autoadda.apis.vehicle.controller;
 
 import com.autoadda.apis.vehicle.request.VehicleRegistrationRequest;
 import com.autoadda.apis.vehicle.response.GenericResponse;
+import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
 import com.autoadda.apis.vehicle.service.VehicleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,50 +17,61 @@ public class VehicleController {
 
     @PostMapping("/add")
     public GenericResponse addVehicleDetails(@RequestBody VehicleRegistrationRequest request,
-                                             @RequestHeader(value = "X-User-Id") String userId ,
-                                             @RequestHeader(value = "X-User-Role") String userRole,
                                              @RequestHeader(value = "X-Auto-Adda-Id") String autoAddaId) {
-
-      log.info( "userRole -> " + userRole + " userId -> " + userId + " request -> "  );
-        return vehicleService.addVehicleDetails ( request,userId ,autoAddaId );
+        return vehicleService.addVehicleDetails ( request, autoAddaId );
     }
 
     @GetMapping
-    public GenericResponse getVehicleDetails(@RequestHeader(value = "X-User-Id") String userId ,
-                                             @RequestHeader(value = "X-User-Role") String userRole,
-                                             @RequestHeader(value = "X-Auto-Adda-Id") String autoAddaId) {
-        return vehicleService.getVehicleDetails ( userId,autoAddaId );
+    public GenericResponse getVehicleDetails(
+            @RequestHeader(value = "X-Auto-Adda-Id") String autoAddaId) {
+        return vehicleService.getVehicleDetails ( autoAddaId );
     }
 
     @GetMapping("/{vehicleId}")
     public GenericResponse getVehicleDetailsById(
-                                              @RequestHeader(value = "X-User-Id") String userId ,
-                                             @RequestHeader(value = "X-User-Role") String userRole,
-                                             @PathVariable Integer vehicleId) {
-        return vehicleService.getVehicleDetailsByVehicleId ( vehicleId , userId , userRole );
+            @PathVariable Integer vehicleId) {
+        return vehicleService.getVehicleDetailsByVehicleId ( vehicleId );
+    }
+
+    //isc  --> inter service communication
+    @GetMapping("/isc/{vehicleId}")
+    public VehicleDetailResponse getVehicleDetailsByIdResponse(
+            @PathVariable Integer vehicleId) {
+        return vehicleService.getVehicleDetailsByVehicleIdForIsc ( vehicleId );
     }
 
     @GetMapping("images/{vehicleId}")
-    public GenericResponse getVehicleImagesById(@RequestHeader(value = "X-User-Id") String userId ,
-                                                @RequestHeader(value = "X-User-Role") String userRole,
-                                                @PathVariable Integer vehicleId) {
-        return vehicleService.getVehicleImagesByVehicleId ( vehicleId , userId , userRole );
+    public GenericResponse getVehicleImagesById(
+            @PathVariable Integer vehicleId) {
+        return vehicleService.getVehicleImagesByVehicleId ( vehicleId );
     }
 
     @PutMapping
     public GenericResponse updateVehicleDetails(@RequestBody VehicleRegistrationRequest request,
-                                               @RequestParam("vehicleId") Integer vehicleId,
-                                               @RequestHeader(value = "X-User-Id") String userId ,
-                                               @RequestHeader(value = "X-User-Role") String userRole) {
-        return vehicleService.updateVehicleDetails (vehicleId, request, userId );
+                                                @RequestParam("vehicleId") Integer vehicleId,
+                                                @RequestHeader(value = "X-Auto-Adda-Id") String userId) {
+        return vehicleService.updateVehicleDetails ( vehicleId, request, userId );
     }
 
 
     @DeleteMapping
     public GenericResponse deleteVehicleDetails(@RequestParam("vehicleId") Integer vehicleId,
-                                               @RequestHeader(value = "X-User-Id") String userId ,
-                                               @RequestHeader(value = "X-User-Role") String userRole) {
-        return vehicleService.deleteVehicleDetails (vehicleId, userId );
+                                                @RequestHeader(value = "X-Auto-Adda-Id") String userId) {
+        return vehicleService.deleteVehicleDetails ( vehicleId, userId );
     }
 
+    @GetMapping("/company/{companyId}")
+    public GenericResponse getVehicleDetailsByCompanyId(@PathVariable Long companyId) {
+        return vehicleService.getVehiclesByCompanyId ( companyId );
+    }
+
+    @GetMapping("/owner/{ownerId}")
+    public GenericResponse getVehicleDetailsByOwnerId(@PathVariable Long ownerId) {
+        return vehicleService.getVehiclesByOwnerId ( ownerId );
+    }
+
+    @GetMapping("/company-owner/{ownerId}")
+    public GenericResponse getCompanyVehiclesByOwnerId(@PathVariable Integer ownerId) {
+        return vehicleService.getCompanyVehiclesByOwnerId ( ownerId );
+    }
 }

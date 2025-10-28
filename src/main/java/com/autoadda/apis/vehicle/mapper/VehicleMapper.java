@@ -1,5 +1,7 @@
 package com.autoadda.apis.vehicle.mapper;
 
+import com.autoadda.apis.vehicle.clients.IdentityClient;
+import com.autoadda.apis.vehicle.clients.PartClient;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.request.VehicleRegistrationRequest;
 import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
@@ -13,123 +15,145 @@ import java.util.Optional;
 @Component
 @RequiredArgsConstructor
 public class VehicleMapper {
-
+    private final PartClient partClient;
     private final MediaFileMapper mediaFileMapper;
+    private final IdentityClient identityClient;
 
     public VehicleDetails toEntity(VehicleRegistrationRequest request) {
-        VehicleDetails vehicleDetails = new VehicleDetails ( );
-        vehicleDetails.setCode ( request.getCode ( ) );
-        vehicleDetails.setYear ( request.getYear ( ) );
-        vehicleDetails.setState ( request.getState ( ) );
-        vehicleDetails.setBrand ( request.getBrand ( ) );
-        vehicleDetails.setModel ( request.getModel ( ) );
-        vehicleDetails.setOrigin ( request.getOrigin ( ) );
-        vehicleDetails.setNumber ( request.getNumber ( ) );
-        vehicleDetails.setTcNumber ( request.getTcNumber ( ) );
-        vehicleDetails.setNickName ( request.getNickName ( ) );
-        vehicleDetails.setOdometer ( request.getOdometer ( ) );
-        vehicleDetails.setRegExpiry ( request.getRegExpiry ( ) );
-        vehicleDetails.setChassisNo ( request.getChassisNo ( ) );
-        vehicleDetails.setInsuExpiry ( request.getInsuExpiry ( ) );
-        vehicleDetails.setInsuPolicy ( request.getInsuPolicy ( ) );
-        vehicleDetails.setEngineType ( request.getEngineType ( ) );
-        vehicleDetails.setInsuCompany ( request.getInsuCompany ( ) );
-        vehicleDetails.setVehicleType ( request.getVehicleType ( ) );
-        vehicleDetails.setEngineNumber ( request.getEngineNumber ( ) );
-        vehicleDetails.setVehicleColor ( request.getVehicleColor ( ) );
-        vehicleDetails.setNumOfPassenger ( request.getNumOfPassenger ( ) );
+        VehicleDetails vehicleDetails = new VehicleDetails();
+        vehicleDetails.setCode(request.getCode());
+        vehicleDetails.setYear(request.getYear());
+        vehicleDetails.setState(request.getState());
+        vehicleDetails.setBrand(request.getBrand() != null && !request.getBrand().isBlank() ? request.getBrand() : null);
+        vehicleDetails.setModel(request.getModel() != null && !request.getModel().isBlank() ? request.getModel() : null);
+        vehicleDetails.setOrigin(request.getOrigin());
+        vehicleDetails.setNumber(request.getNumber());
+        vehicleDetails.setTcNumber(request.getTcNumber());
+        vehicleDetails.setNickName(request.getNickName());
+        vehicleDetails.setOdometer(request.getOdometer());
+        vehicleDetails.setRegExpiry(request.getRegExpiry());
+        vehicleDetails.setChassisNo(request.getChassisNo());
+        vehicleDetails.setInsuExpiry(request.getInsuExpiry());
+        vehicleDetails.setInsuPolicy(request.getInsuPolicy());
+        vehicleDetails.setEngineType(request.getEngineType() != null && !request.getEngineType().isBlank() ? request.getEngineType() : null);
+        vehicleDetails.setInsuCompany(request.getInsuCompany());
+        vehicleDetails.setMainImageId(request.getMainImageId());
+        vehicleDetails.setVehicleType(request.getVehicleType());
+        vehicleDetails.setEngineNumber(request.getEngineNumber());
+        vehicleDetails.setBrandRequestReferenceId(request.getBrandRequestReferenceId() != null && !request.getBrandRequestReferenceId().isBlank() ? request.getBrandRequestReferenceId() : null);
+        vehicleDetails.setVehicleColor(request.getVehicleColor());
+        vehicleDetails.setNumOfPassenger(request.getNumOfPassenger());
         // PolicyTypeEnum validation and exception handling
-        vehicleDetails.setPolicyType (
-                Optional.ofNullable ( request.getPolicyType ( ) )
-                        .filter ( s -> ! s.isBlank ( ) )
-                        .map ( PolicyTypeEnum::valueOf )
-                        .orElseThrow ( () -> new IllegalArgumentException ( "Policy type must not be null or empty" ) )
+        vehicleDetails.setPolicyType(
+                Optional.ofNullable(request.getPolicyType())
+                        .filter(s -> !s.isBlank())
+                        .map(PolicyTypeEnum::valueOf)
+                        .orElseThrow(() -> new IllegalArgumentException("Policy type must not be null or empty"))
         );
-        vehicleDetails.setVehicleTypeCategory (
-                Optional.ofNullable ( request.getVehicleTypeCategory ( ) )
-                        .filter ( s -> ! s.isBlank ( ) )
-                        .map ( VehicleTypeCategoryEnum::valueOf )
-                        .orElseThrow ( () -> new IllegalArgumentException ( "Vehicle type category must not be null or empty" ) )
+        vehicleDetails.setVehicleTypeCategory(
+                Optional.ofNullable(request.getVehicleTypeCategory())
+                        .filter(s -> !s.isBlank())
+                        .map(VehicleTypeCategoryEnum::valueOf)
+                        .orElseThrow(() -> new IllegalArgumentException("Vehicle type category must not be null or empty"))
         );
         return vehicleDetails;
     }
 
     public VehicleDetailResponse toResponse(VehicleDetails vehicleDetails) {
-        VehicleDetailResponse vehicleDetailResponse = new VehicleDetailResponse ( );
-        vehicleDetailResponse.setId ( vehicleDetails.getId ( ) != null ? vehicleDetails.getId ( ) : null );
-        vehicleDetailResponse.setCode ( vehicleDetails.getCode ( ) != null ? vehicleDetails.getCode ( ) : null );
-        vehicleDetailResponse.setYear ( vehicleDetails.getYear ( ) != null ? vehicleDetails.getYear ( ) : null );
-        vehicleDetailResponse.setBrand ( vehicleDetails.getBrand ( ) != null ? vehicleDetails.getBrand ( ) : null );
-        vehicleDetailResponse.setModel ( vehicleDetails.getModel ( ) != null ? vehicleDetails.getModel ( ) : null );
-        vehicleDetailResponse.setState ( vehicleDetails.getState ( ) != null ? vehicleDetails.getState ( ) : null );
-        vehicleDetailResponse.setOrigin ( vehicleDetails.getOrigin ( ) != null ? vehicleDetails.getOrigin ( ) : null );
-        vehicleDetailResponse.setNumber ( vehicleDetails.getNumber ( ) != null ? vehicleDetails.getNumber ( ) : null );
-        vehicleDetailResponse.setOdometer ( vehicleDetails.getOdometer ( ) != null ? vehicleDetails.getOdometer ( ) : null );
-        vehicleDetailResponse.setNickName ( vehicleDetails.getNickName ( ) != null ? vehicleDetails.getNickName ( ) : null );
-        vehicleDetailResponse.setTcNumber ( vehicleDetails.getTcNumber ( ) != null ? vehicleDetails.getTcNumber ( ) : null );
-        vehicleDetailResponse.setChassisNo ( vehicleDetails.getChassisNo ( ) != null ? vehicleDetails.getChassisNo ( ) : null );
-        vehicleDetailResponse.setRegExpiry ( vehicleDetails.getRegExpiry ( ) != null ? vehicleDetails.getRegExpiry ( ) : null );
-        vehicleDetailResponse.setPolicyType ( vehicleDetails.getPolicyType ( ) != null ? vehicleDetails.getPolicyType ( ) : null );
-        vehicleDetailResponse.setEngineType ( vehicleDetails.getEngineType ( ) != null ? vehicleDetails.getEngineType ( ) : null );
-        vehicleDetailResponse.setInsuExpiry ( vehicleDetails.getInsuExpiry ( ) != null ? vehicleDetails.getInsuExpiry ( ) : null );
-        vehicleDetailResponse.setInsuPolicy ( vehicleDetails.getInsuPolicy ( ) != null ? vehicleDetails.getInsuPolicy ( ) : null );
-        vehicleDetailResponse.setInsuCompany ( vehicleDetails.getInsuCompany ( ) != null ? vehicleDetails.getInsuCompany ( ) : null );
-        vehicleDetailResponse.setVehicleType ( vehicleDetails.getVehicleType ( ) != null ? vehicleDetails.getVehicleType ( ) : null );
-        vehicleDetailResponse.setVehicleColor ( vehicleDetails.getVehicleColor ( ) != null ? vehicleDetails.getVehicleColor ( ) : null );
-        vehicleDetailResponse.setEngineNumber ( vehicleDetails.getEngineNumber ( ) != null ? vehicleDetails.getEngineNumber ( ) : null );
-        vehicleDetailResponse.setNumOfPassenger ( vehicleDetails.getNumOfPassenger ( ) != null ? vehicleDetails.getNumOfPassenger ( ) : null );
-        vehicleDetailResponse.setVehicleTypeCategory ( vehicleDetails.getVehicleTypeCategory ( ) != null ? vehicleDetails.getVehicleTypeCategory ( ) : null );
-        vehicleDetailResponse.setMulkiaImageFront ( vehicleDetails.getMulkiaImageFront ( ) == null ? null : mediaFileMapper.toResponse ( vehicleDetails.getMulkiaImageFront ( ) ) );
-        vehicleDetailResponse.setMulkiaImageBack ( vehicleDetails.getMulkiaImageBack ( ) == null ? null : mediaFileMapper.toResponse ( vehicleDetails.getMulkiaImageBack ( ) ) );
-        vehicleDetailResponse.setVehicleImages ( vehicleDetails.getVehicleImages ( ) == null ? null : vehicleDetails.getVehicleImages ( ).stream ( ).map ( mediaFileMapper::toResponse ).toList ( ) );
+        VehicleDetailResponse vehicleDetailResponse = new VehicleDetailResponse();
+        vehicleDetailResponse.setId(vehicleDetails.getId() != null ? vehicleDetails.getId() : null);
+        vehicleDetailResponse.setCode(vehicleDetails.getCode() != null ? vehicleDetails.getCode() : null);
+        vehicleDetailResponse.setYear(vehicleDetails.getYear() != null ? vehicleDetails.getYear() : null);
+        vehicleDetailResponse.setBrand(vehicleDetails.getBrand() != null ? vehicleDetails.getBrand() : null);
+        vehicleDetailResponse.setModel(vehicleDetails.getModel() != null ? vehicleDetails.getModel() : null);
+        vehicleDetailResponse.setState(vehicleDetails.getState() != null ? vehicleDetails.getState() : null);
+        vehicleDetailResponse.setOrigin(vehicleDetails.getOrigin() != null ? vehicleDetails.getOrigin() : null);
+        vehicleDetailResponse.setNumber(vehicleDetails.getNumber() != null ? vehicleDetails.getNumber() : null);
+        vehicleDetailResponse.setOdometer(vehicleDetails.getOdometer() != null ? vehicleDetails.getOdometer() : null);
+        vehicleDetailResponse.setNickName(vehicleDetails.getNickName() != null ? vehicleDetails.getNickName() : null);
+        vehicleDetailResponse.setTcNumber(vehicleDetails.getTcNumber() != null ? vehicleDetails.getTcNumber() : null);
+        vehicleDetailResponse.setCompanyId(vehicleDetails.getCompanyId() != null ? vehicleDetails.getCompanyId() : null);
+        vehicleDetailResponse.setChassisNo(vehicleDetails.getChassisNo() != null ? vehicleDetails.getChassisNo() : null);
+        vehicleDetailResponse.setRegExpiry(vehicleDetails.getRegExpiry() != null ? vehicleDetails.getRegExpiry() : null);
+        vehicleDetailResponse.setPolicyType(vehicleDetails.getPolicyType() != null ? vehicleDetails.getPolicyType() : null);
+        vehicleDetailResponse.setEngineType(vehicleDetails.getEngineType() != null ? vehicleDetails.getEngineType() : null);
+        vehicleDetailResponse.setInsuExpiry(vehicleDetails.getInsuExpiry() != null ? vehicleDetails.getInsuExpiry() : null);
+        vehicleDetailResponse.setInsuPolicy(vehicleDetails.getInsuPolicy() != null ? vehicleDetails.getInsuPolicy() : null);
+        vehicleDetailResponse.setInsuCompany(vehicleDetails.getInsuCompany() != null ? vehicleDetails.getInsuCompany() : null);
+        vehicleDetailResponse.setVehicleType(vehicleDetails.getVehicleType() != null ? vehicleDetails.getVehicleType() : null);
+        vehicleDetailResponse.setVehicleColor(vehicleDetails.getVehicleColor() != null ? vehicleDetails.getVehicleColor() : null);
+        vehicleDetailResponse.setEngineNumber(vehicleDetails.getEngineNumber() != null ? vehicleDetails.getEngineNumber() : null);
+        vehicleDetailResponse.setNumOfPassenger(vehicleDetails.getNumOfPassenger() != null ? vehicleDetails.getNumOfPassenger() : null);
+        vehicleDetailResponse.setVehicleTypeCategory(vehicleDetails.getVehicleTypeCategory() != null ? vehicleDetails.getVehicleTypeCategory() : null);
+        vehicleDetailResponse.setBrandRequestReferenceId(vehicleDetails.getBrandRequestReferenceId() != null ? vehicleDetails.getBrandRequestReferenceId() : null);
+        vehicleDetailResponse.setMulkiaImageFront(vehicleDetails.getMulkiaImageFront() == null ? null : mediaFileMapper.toResponse(vehicleDetails.getMulkiaImageFront()));
+        vehicleDetailResponse.setMulkiaImageBack(vehicleDetails.getMulkiaImageBack() == null ? null : mediaFileMapper.toResponse(vehicleDetails.getMulkiaImageBack()));
+        vehicleDetailResponse.setVehicleImages(vehicleDetails.getVehicleImages() == null ? null : vehicleDetails.getVehicleImages().stream().map(mediaFileMapper::toResponse).toList());
+        vehicleDetailResponse.setMainImage(
+                vehicleDetails.getVehicleImages().stream()
+                        .filter(m -> m.getId().equals(vehicleDetails.getMainImageId()))
+                        .map(mediaFileMapper::toResponse)
+                        .findFirst()
+                        .orElse(null)
+        );
+        vehicleDetailResponse.setOwner(identityClient.getUser(vehicleDetails.getCustomerId()));
+//        vehicleDetailResponse.setBrandOnboardResponse ( partClient.getBrandById ( vehicleDetails.getBrandRequestReferenceId () ).getBody ());
         return vehicleDetailResponse;
     }
 
     public void updateEntity(VehicleDetails vehicleDetails, VehicleRegistrationRequest request) {
-        if ( request.getYear ( ) != null ) {
-            vehicleDetails.setYear ( request.getYear ( ) );
+        if (request.getYear() != null) {
+            vehicleDetails.setYear(request.getYear());
         }
-        if ( request.getBrand ( ) != null ) {
-            vehicleDetails.setBrand ( request.getBrand ( ) );
+        if (request.getBrand() != null) {
+            vehicleDetails.setBrand(request.getBrand());
         }
-        if ( request.getModel ( ) != null ) {
-            vehicleDetails.setModel ( request.getModel ( ) );
+        if (request.getModel() != null) {
+            vehicleDetails.setModel(request.getModel());
         }
-        if(request.getEngineType() != null) {
-            vehicleDetails.setEngineType ( request.getEngineType ( ) );
-        }
-
-        if ( request.getState ( ) != null ) {
-            vehicleDetails.setState ( request.getState ( ) );
-        }
-        if ( request.getOrigin ( ) != null ) {
-            vehicleDetails.setOrigin ( request.getOrigin ( ) );
-        }
-        if ( request.getNumber ( ) != null ) {
-            vehicleDetails.setNumber ( request.getNumber ( ) );
-        }
-        if ( request.getOdometer ( ) != null ) {
-            vehicleDetails.setOdometer ( request.getOdometer ( ) );
-        }
-        if ( request.getNickName ( ) != null ) {
-            vehicleDetails.setNickName ( request.getNickName ( ) );
-        }
-        if ( request.getTcNumber ( ) != null ) {
-            vehicleDetails.setTcNumber ( request.getTcNumber ( ) );
-        }
-        if ( request.getRegExpiry ( ) != null ) {
-            vehicleDetails.setRegExpiry ( request.getRegExpiry ( ) );
-        }
-        if ( request.getInsuCompany ( ) != null ) {
-            vehicleDetails.setInsuCompany ( request.getInsuCompany ( ) );
-        }
-        if ( request.getInsuExpiry ( ) != null ) {
-            vehicleDetails.setInsuExpiry ( request.getInsuExpiry ( ) );
-        }
-        if ( request.getInsuPolicy ( ) != null ) {
-            vehicleDetails.setInsuPolicy ( request.getInsuPolicy ( ) );
+        if (request.getEngineType() != null) {
+            vehicleDetails.setEngineType(request.getEngineType());
         }
 
+        if (request.getState() != null) {
+            vehicleDetails.setState(request.getState());
+        }
+        if (request.getOrigin() != null) {
+            vehicleDetails.setOrigin(request.getOrigin());
+        }
+        if (request.getNumber() != null) {
+            vehicleDetails.setNumber(request.getNumber());
+        }
+        if (request.getOdometer() != null) {
+            vehicleDetails.setOdometer(request.getOdometer());
+        }
+        if (request.getNickName() != null) {
+            vehicleDetails.setNickName(request.getNickName());
+        }
+        if (request.getTcNumber() != null) {
+            vehicleDetails.setTcNumber(request.getTcNumber());
+        }
+        if (request.getRegExpiry() != null) {
+            vehicleDetails.setRegExpiry(request.getRegExpiry());
+        }
+        if (request.getInsuCompany() != null) {
+            vehicleDetails.setInsuCompany(request.getInsuCompany());
+        }
+        if (request.getInsuExpiry() != null) {
+            vehicleDetails.setInsuExpiry(request.getInsuExpiry());
+        }
+        if (request.getInsuPolicy() != null) {
+            vehicleDetails.setInsuPolicy(request.getInsuPolicy());
+        }
+        if (request.getMainImageId() != null) {
+            vehicleDetails.setMainImageId(request.getMainImageId());
+        }
+        if (request.getVehicleColor() != null) {
+            vehicleDetails.setVehicleColor(request.getVehicleColor());
+        }
+        if (request.getVehicleType() != null) {
+            vehicleDetails.setVehicleType(request.getVehicleType());
+        }
     }
 }
 

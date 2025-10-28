@@ -36,8 +36,14 @@ public class VehicleDetailResponse {
 	private LocalDate insuExpiry;
 	private String insuPolicy;
 	private String insuCompany;
+//	private BrandOnboardResponse brandOnboardResponse;
+	private String brandRequestReferenceId;
 	private MediaFileResponse mulkiaImageFront;
 	private MediaFileResponse mulkiaImageBack;
 	private List<MediaFileResponse> vehicleImages;
+	private MediaFileResponse mainImage;
+	private UserResponse owner;
+    private Long companyId;
+    private CompanyResponse companyResponse;
 
 }

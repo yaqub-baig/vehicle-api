@@ -5,7 +5,6 @@ import com.autoadda.apis.vehicle.dao.*;
 import com.autoadda.apis.vehicle.entity.*;
 import com.autoadda.apis.vehicle.request.*;
 import com.autoadda.apis.vehicle.response.*;
-
 import com.autoadda.apis.vehicle.exception.CustomerNotExistException;
 import com.autoadda.apis.vehicle.exception.GarageNotExistException;
 import com.autoadda.apis.vehicle.exception.MemberAlreadyExistException;
@@ -35,11 +34,7 @@ public class OldProfileServiceImpl implements OldProfileService {
 
 
     private final ServiceTransformer platformProfileTransformer;
-
-
     private final ServiceValidator serviceValidator;
-
-
     private final GarageLicenseDetailsRepository garageLicenseDetailsRepository;
 
 

@@ -1,24 +1,32 @@
 package com.autoadda.apis.vehicle.service.impl;
 
+import com.autoadda.apis.vehicle.dao.CompanyRepository;
 import com.autoadda.apis.vehicle.dao.MediaFileRepository;
 import com.autoadda.apis.vehicle.dao.UserRepository;
 import com.autoadda.apis.vehicle.dao.VehicleDetailsRepository;
+import com.autoadda.apis.vehicle.entity.Company;
 import com.autoadda.apis.vehicle.entity.MediaFile;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.mapper.MediaFileMapper;
 import com.autoadda.apis.vehicle.mapper.VehicleMapper;
 import com.autoadda.apis.vehicle.request.VehicleRegistrationRequest;
+import com.autoadda.apis.vehicle.response.CompanyResponse;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.response.MediaFileResponse;
 import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
 import com.autoadda.apis.vehicle.service.VehicleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
+
 
 @Service
 @RequiredArgsConstructor
@@ -28,14 +36,22 @@ public class VehicleServiceImpl implements VehicleService {
     private final VehicleMapper vehicleMapper;
     private final MediaFileMapper mediaFileMapper;
     private final UserRepository userRepository;
+    private final CompanyService companyService;
     private final MediaFileRepository mediaFileRepository;
+    private final CompanyRepository companyRepository;
 
     @Override
-    public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String mobileNumber, String autoAddaId) {
-
+    public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String autoAddaId) {
+        Optional<VehicleDetails> byChassisNo = vehicleRepository.findByChassisNo ( request.getChassisNo ( ) );
+        if(byChassisNo.isPresent ()){
+            throw new ResourceNotFoundException ( "Vehicle chassis number already exists" );
+        }
         VehicleDetails entity = vehicleMapper.toEntity ( request );
         entity.setCustomerId ( Integer.parseInt ( autoAddaId ) );
-
+        if(request.getCompanyId ()!=null)
+        {
+            entity.setCompanyId ( request.getCompanyId ( ) );
+        }
         if ( request.getMulkiaImageFront ( ) != null ) {
             MediaFile mulkiaImageFront = mediaFileRepository.findById ( request.getMulkiaImageFront ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Mulkia image not found" ) );
             entity.setMulkiaImageFront ( mulkiaImageFront );
@@ -58,14 +74,16 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
-    public GenericResponse getVehicleDetails(String userId, String autoAddaId) {
-        log.info ( "1. Getting vehicle details for user id: {}", userId );
+    public GenericResponse getVehicleDetails(String autoAddaId) {
+
         List<VehicleDetails> byCustomerMobileNumber = vehicleRepository.findByCustomerId ( Integer.parseInt ( autoAddaId ) );
         log.info ( "2. Vehicle list size: {}", byCustomerMobileNumber.size ( ) );
         List<VehicleDetailResponse> list1 = byCustomerMobileNumber.stream ( )
                 .sorted ( (o1, o2) -> o2.getId ( ).compareTo ( o1.getId ( ) ) )
-                .filter ( vehicleDetails -> !vehicleDetails.isDeleted ( ))
-                .map ( vehicleMapper::toResponse ).toList ( );
+                .filter ( vehicleDetails -> ! vehicleDetails.isDeleted ( ) )
+                .map ( vehicleMapper::toResponse )
+                .map(this::addCompanyResponse)
+                .toList ( );
 
         return GenericResponse.builder ( )
                 .body ( list1 )
@@ -75,22 +93,32 @@ public class VehicleServiceImpl implements VehicleService {
                 .build ( );
     }
 
+    private VehicleDetailResponse addCompanyResponse(VehicleDetailResponse vehicleDetailResponse) {
+
+        if (vehicleDetailResponse.getCompanyId()!=null) {
+            CompanyResponse company = companyService.getCompanyByIdV2(vehicleDetailResponse.getCompanyId());
+            vehicleDetailResponse.setCompanyResponse(company);
+        }
+        return vehicleDetailResponse;
+    }
+
     @Override
-    public GenericResponse getVehicleDetailsByVehicleId(Integer vehicleId, String userId, String userRole) {
+    public GenericResponse getVehicleDetailsByVehicleId(Integer vehicleId) {
         VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
         if ( vehicleDetails.isDeleted ( ) ) {
             throw new ResourceNotFoundException ( "Vehicle deleted" );
         }
 
         VehicleDetailResponse response = vehicleMapper.toResponse ( vehicleDetails );
-        return GenericResponse.builder ( ).body ( response )
+       VehicleDetailResponse responded=addCompanyResponse(response);
+        return GenericResponse.builder ( ).body ( responded )
                 .code ( "200" )
                 .message ( "success" ).build ( );
 
     }
 
     @Override
-    public GenericResponse getVehicleImagesByVehicleId(Integer vehicleId, String userId, String userRole) {
+    public GenericResponse getVehicleImagesByVehicleId(Integer vehicleId) {
         List<MediaFileResponse> list = vehicleRepository.findImagesByVehicleId ( vehicleId )
                 .stream ( ).map ( mediaFileMapper::toResponse ).toList ( );
         return GenericResponse.builder ( ).body ( list.isEmpty ( ) ? "No images found" : list )
@@ -98,41 +126,32 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
+    @Transactional
     public GenericResponse updateVehicleDetails(Integer vehicleId, VehicleRegistrationRequest request, String userId) {
-        VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
-        Long prevId=null;
-        vehicleMapper.updateEntity ( vehicleDetails, request );
-        if(request.getMulkiaImageFront ()!=null){
-            MediaFile front = mediaFileRepository.findById ( request.getMulkiaImageFront ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) );
-            log.info("-----------1");
-            prevId=vehicleDetails.getMulkiaImageFront ().getId ();
-            log.info("-----------2");
-            vehicleDetails.setMulkiaImageFront (null  );
-            log.info("-----------3");
-            vehicleDetails.setMulkiaImageFront (front );
-            log.info("-----------4");
-            mediaFileRepository.deleteById ( prevId );
-            log.info("-----------5");
-        }
-        if(request.getMulkiaImageBack ()!=null){
-            MediaFile back = mediaFileRepository.findById ( request.getMulkiaImageBack ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) );
-            prevId=vehicleDetails.getMulkiaImageBack ().getId ();
-            vehicleDetails.setMulkiaImageBack (null);
-            vehicleDetails.setMulkiaImageBack (back );
-            mediaFileRepository.deleteById ( prevId );
+        VehicleDetails existing = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: " + vehicleId));
+
+        vehicleMapper.updateEntity(existing, request);
+
+        List<Long> filesToCleanup = new ArrayList<>();
+
+        handleMulkiaImageFront(request, existing, filesToCleanup);
+        handleMulkiaImageBack(request, existing, filesToCleanup);
+        handleVehicleImages(request, existing, filesToCleanup);
+        VehicleDetails save = vehicleRepository.save(existing);
+
+        if (!filesToCleanup.isEmpty()) {
+            scheduleMediaFileCleanup(filesToCleanup);
         }
 
-        if ( request.getVehicleImages ( ) != null ) {
-            log.info ( "1         Vehicle images size: {}", request.getVehicleImages ( ).size ( ) );
-            vehicleDetails.getVehicleImages ( ).clear ( );
-            List<MediaFile> vehicleImages = request.getVehicleImages ( ).stream ( )
-                    .map ( id -> mediaFileRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) ) ).collect ( Collectors.toList ( ) );
-            log.info ( "2 ------>Vehicle images size: {}", vehicleImages.size ( ) );
-            vehicleDetails.getVehicleImages (  ).addAll ( vehicleImages );
-        }
-        VehicleDetails save = vehicleRepository.save ( vehicleDetails );
-        VehicleDetailResponse response = vehicleMapper.toResponse ( save );
-        return GenericResponse.builder ( ).body ( response ).code ( "200" ).message ( "success" ).status ( "success" ).build ( );
+        VehicleDetailResponse response = vehicleMapper.toResponse(save);
+        VehicleDetailResponse responded=  addCompanyResponse(response);
+        return GenericResponse.builder()
+                .body(responded)
+                .code("200")
+                .message("success")
+                .status("success")
+                .build();
     }
 
     @Override
@@ -141,5 +160,164 @@ public class VehicleServiceImpl implements VehicleService {
         vehicleDetails.setDeleted ( true );
         vehicleRepository.save ( vehicleDetails );
         return GenericResponse.builder ( ).body ( "Vehicle deleted" ).code ( "200" ).message ( "success" ).status ( "success" ).build ( );
+    }
+
+    @Override
+    public VehicleDetailResponse getVehicleDetailsByVehicleIdForIsc(Integer vehicleId) {
+        VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
+        if ( vehicleDetails.isDeleted ( ) ) {
+            throw new ResourceNotFoundException ( "Vehicle deleted" );
+        }
+        return vehicleMapper.toResponse ( vehicleDetails );
+
+    }
+
+    @Override
+    public GenericResponse getVehiclesByCompanyId(Long companyId) {
+        List<VehicleDetails> byCompanyId = vehicleRepository.findByCompanyId(companyId);
+
+        List<VehicleDetailResponse> list1 = byCompanyId.stream ( )
+                .sorted ( (o1, o2) -> o2.getId ( ).compareTo ( o1.getId ( ) ) )
+                .filter ( vehicleDetails -> ! vehicleDetails.isDeleted ( ) )
+                .map ( vehicleMapper::toResponse )
+                .map(this::addCompanyResponse)
+                .toList ( );
+
+        return GenericResponse.builder ( )
+                .body ( list1 )
+                .code ( "200" )
+                .message (list1.isEmpty ()? "No vehicles found" : "success" )
+                .status ( "success" )
+                .build ( );
+
+    }
+
+    @Override
+    public GenericResponse getVehiclesByOwnerId(Long ownerId) {
+        List<VehicleDetails> byOwnerId = vehicleRepository.findByCustomerId(ownerId.intValue());
+
+        List<VehicleDetailResponse> list1 = byOwnerId.stream()
+                .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
+                .filter(vehicleDetails -> !vehicleDetails.isDeleted())
+                .map(vehicleMapper::toResponse)
+                .map(this::addCompanyResponse)
+                .toList();
+
+        return GenericResponse.builder()
+                .body(list1)
+                .code("200")
+                .message(list1.isEmpty() ? "No vehicles found" : "success")
+                .status("success")
+                .build();
+    }
+
+    @Override
+    public GenericResponse getCompanyVehiclesByOwnerId(Integer ownerId) {
+        Optional<Company> companyOptional = companyRepository.findByCompanyOwnerId(ownerId);
+
+        if (companyOptional.isEmpty()) {
+            return GenericResponse.builder()
+                    .body(new ArrayList<>())
+                    .code("200")
+                    .message("No company found for this owner")
+                    .status("success")
+                    .build();
+        }
+
+        Company company = companyOptional.get();
+        List<VehicleDetails> companyVehicles = vehicleRepository.findByCompanyId(company.getId());
+
+        List<VehicleDetailResponse> vehicleResponses = companyVehicles.stream()
+                .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
+                .filter(vehicleDetails -> !vehicleDetails.isDeleted())
+                .map(vehicleMapper::toResponse)
+                .map(this::addCompanyResponse)
+                .toList();
+
+        return GenericResponse.builder()
+                .body(vehicleResponses)
+                .code("200")
+                .message(vehicleResponses.isEmpty() ? "No vehicles found for this company" : "success")
+                .status("success")
+                .build();
+    }
+
+    private void handleMulkiaImageFront(VehicleRegistrationRequest request, VehicleDetails existing, List<Long> filesToCleanup) {
+        if (request.getMulkiaImageFront() != null) {
+            Long prevImageId = existing.getMulkiaImageFront() != null ? existing.getMulkiaImageFront().getId() : null;
+            MediaFile mediaFile = mediaFileRepository.findById(request.getMulkiaImageFront())
+                    .orElseThrow(() -> new ResourceNotFoundException("Mulkia front image not found"));
+            existing.setMulkiaImageFront(mediaFile);
+
+            if (prevImageId != null && !prevImageId.equals(mediaFile.getId())) {
+                filesToCleanup.add(prevImageId);
+            }
+        }
+    }
+
+    private void handleMulkiaImageBack(VehicleRegistrationRequest request, VehicleDetails existing, List<Long> filesToCleanup) {
+        if (request.getMulkiaImageBack() != null) {
+            Long prevImageId = existing.getMulkiaImageBack() != null ? existing.getMulkiaImageBack().getId() : null;
+            MediaFile mediaFile = mediaFileRepository.findById(request.getMulkiaImageBack())
+                    .orElseThrow(() -> new ResourceNotFoundException("Mulkia back image not found"));
+            existing.setMulkiaImageBack(mediaFile);
+
+            if (prevImageId != null && !prevImageId.equals(mediaFile.getId())) {
+                filesToCleanup.add(prevImageId);
+            }
+        }
+    }
+
+    private void handleVehicleImages(VehicleRegistrationRequest request, VehicleDetails existing, List<Long> filesToCleanup) {
+        if (request.getVehicleImages() != null && !request.getVehicleImages().isEmpty()) {
+            List<Long> oldVehicleImageIds = existing.getVehicleImages().stream()
+                    .map(MediaFile::getId)
+                    .toList();
+            if (!oldVehicleImageIds.isEmpty()) {
+                filesToCleanup.addAll(oldVehicleImageIds);
+            }
+
+            List<MediaFile> newVehicleImages = new ArrayList<>();
+            request.getVehicleImages().forEach(imageId -> {
+                MediaFile mediaFile = mediaFileRepository.findById(imageId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Vehicle image not found"));
+                newVehicleImages.add(mediaFile);
+            });
+
+            existing.getVehicleImages().clear();
+            existing.getVehicleImages().addAll(newVehicleImages);
+        }
+    }
+
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void scheduleMediaFileCleanup(List<Long> mediaFileIds) {
+        try {
+            Thread.sleep(3000);
+
+            for (Long fileId : mediaFileIds) {
+                try {
+                    if (!isMediaFileStillReferenced(fileId)) {
+                        mediaFileRepository.deleteById(fileId);
+                        log.info("Successfully cleaned up media file: {}", fileId);
+                    } else {
+                        log.info("Media file {} still referenced, skipping cleanup", fileId);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to cleanup media file {}: {}", fileId, e.getMessage());
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Media file cleanup interrupted");
+        }
+    }
+
+    private boolean isMediaFileStillReferenced(Long mediaFileId) {
+        long mulkiaFrontCount = vehicleRepository.countByMulkiaImageFrontId(mediaFileId);
+        long mulkiaBackCount = vehicleRepository.countByMulkiaImageBackId(mediaFileId);
+        long vehicleImageCount = vehicleRepository.countByVehicleImageId(mediaFileId);
+        long totalReferences = mulkiaFrontCount + mulkiaBackCount + vehicleImageCount;
+        return totalReferences > 0;
     }
 }

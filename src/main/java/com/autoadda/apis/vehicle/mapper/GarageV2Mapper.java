@@ -58,8 +58,7 @@ public class GarageV2Mapper {
                 .owner(garage.getOwner() != null ? 
                         UserResponse.builder()
                                 .id(garage.getOwner().getId())
-                                .firstName(garage.getOwner().getFirstName())
-                                .lastName(garage.getOwner().getLastName())
+                                .name (garage.getOwner().getFirstName()+" "+garage.getOwner().getLastName())
                                 .email(garage.getOwner().getEmail())
                                 .mobileNumber(garage.getOwner().getMobileNumber())
                                 .isVerified(garage.getOwner().getIsVerified())

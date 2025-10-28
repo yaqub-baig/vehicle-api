@@ -38,7 +38,7 @@ public class VehicleDetails {
     @Column(name = "engine_no")
     private String engineNumber;
 
-    @Column(name = "chassis_no")
+    @Column(name = "chassis_no",unique = true)
     private String chassisNo;
 
     @Column(name = "origin")
@@ -66,7 +66,8 @@ public class VehicleDetails {
 
     @Column(name = "code")
     private String code;
-
+    @Column(name = "brand_request_reference_id")
+    private String brandRequestReferenceId;
     @Column(name = "state")
     private String state;
     @Column(name = "number")
@@ -98,10 +99,9 @@ public class VehicleDetails {
     @OneToMany(orphanRemoval = true,cascade = CascadeType.ALL)
     @JoinColumn(name = "vehicle_images_id")
     private List<MediaFile> vehicleImages;
-
-//    @ManyToOne
-//    private User customer;
-
+    @Column(name = "main_image_id")
+    private Long mainImageId;
+    private Long companyId;
     private Integer customerId;
     private LocalDateTime createdAt;
 
@@ -126,7 +126,5 @@ public class VehicleDetails {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now ( );
     }
-
-
 
 }

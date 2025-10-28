@@ -20,4 +20,6 @@ public class GarageAddressServiceImpl implements GarageAddressService {
         garageAddress.setGmap ( request.getGmap ( ) );
         return garageAddressRepository.save ( garageAddress );
     }
+
+
 }
