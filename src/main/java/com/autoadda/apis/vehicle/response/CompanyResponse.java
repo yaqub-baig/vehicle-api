@@ -1,5 +1,6 @@
 package com.autoadda.apis.vehicle.response;
 
+import com.autoadda.apis.vehicle.entity.MediaFile;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,4 +14,5 @@ public class CompanyResponse {
     private UserResponse companyOwner;
     private String tradeLicenseNumber;
     private String tradeLicenseExpiry;
+    private MediaFile profileImage;
 }
