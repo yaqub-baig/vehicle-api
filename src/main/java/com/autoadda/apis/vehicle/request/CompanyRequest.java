@@ -12,4 +12,5 @@ public class CompanyRequest {
     private String name;
     private String tradeLicenseNumber;
     private String tradeLicenseExpiry;
+    private Long profileImageId;
 }

@@ -4,10 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
+import javax.persistence.*;
 
 @Entity
 @AllArgsConstructor
@@ -22,4 +19,7 @@ public class Company {
     private String tradeLicenseNumber;
     private String tradeLicenseExpiry;
     private Boolean isActive;
+
+    @ManyToOne
+    private MediaFile profileImage;
 }

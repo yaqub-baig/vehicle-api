@@ -1,7 +1,9 @@
 package com.autoadda.apis.vehicle.mapper;
 
 import com.autoadda.apis.vehicle.clients.IdentityClient;
+import com.autoadda.apis.vehicle.dao.MediaFileRepository;
 import com.autoadda.apis.vehicle.entity.Company;
+import com.autoadda.apis.vehicle.entity.MediaFile;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.request.CompanyRequest;
 import com.autoadda.apis.vehicle.response.CompanyResponse;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CompanyMapper {
     private final IdentityClient identityClient;
+    private final MediaFileRepository mediaFileRepository;
     public Company toEntity(CompanyRequest companyRequest) {
         Company company = new Company ( );
         UserResponse user = identityClient.getUser ( companyRequest.getCompanyOwnerId ( ) );
@@ -27,7 +30,13 @@ public class CompanyMapper {
         company.setName ( companyRequest.getName ( ) );
         company.setTradeLicenseExpiry ( companyRequest.getTradeLicenseExpiry ( ) );
         company.setTradeLicenseNumber ( companyRequest.getTradeLicenseNumber ( ) );
+
+        if ( companyRequest.getProfileImageId ( ) != null ) {
+            MediaFile profileImage = mediaFileRepository.findById(companyRequest.getProfileImageId()).orElseThrow(() -> new ResourceNotFoundException("Profile image not found"));
+            company.setProfileImage(profileImage);
+        }
         company.setIsActive ( true );
+
         return company;
     }
 
@@ -39,6 +48,7 @@ public class CompanyMapper {
         companyResponse.setCompanyOwner ( user );
         companyResponse.setTradeLicenseExpiry ( company.getTradeLicenseExpiry ()!=null? company.getTradeLicenseExpiry ():null );
         companyResponse.setTradeLicenseNumber ( company.getTradeLicenseNumber ()!=null?company.getTradeLicenseNumber ():null );
+        companyResponse.setProfileImage(company.getProfileImage() != null? company.getProfileImage():null);
         return companyResponse;
     }
 
@@ -47,6 +57,10 @@ public class CompanyMapper {
 
         if(companyRequest.getTradeLicenseExpiry ()!=null){
             companyFound.setTradeLicenseExpiry ( companyRequest.getTradeLicenseExpiry ( ) );
+        }
+        if ( companyRequest.getProfileImageId ( ) != null ) {
+            MediaFile profileImage = mediaFileRepository.findById(companyRequest.getProfileImageId()).orElseThrow(() -> new ResourceNotFoundException("Profile image not found"));
+            companyFound.setProfileImage(profileImage);
         }
         return  companyFound ;
     }
