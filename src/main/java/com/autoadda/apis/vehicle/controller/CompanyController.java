@@ -6,7 +6,7 @@ import com.autoadda.apis.vehicle.service.impl.CompanyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-
+@CrossOrigin("*")
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/company")

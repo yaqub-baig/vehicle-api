@@ -5,7 +5,7 @@ import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.service.impl.VehicleOwnerDocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
+@CrossOrigin("*")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/vehicle-owner-document")
