@@ -41,7 +41,7 @@ public class CorsConfig {
 				"Access-Control-Allow-Credentials"
 		));
 
-		config.setAllowCredentials(true);
+		config.setAllowCredentials(false);
 		config.setMaxAge(3600L); // Cache preflight response for 1 hour
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
