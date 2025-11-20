@@ -75,4 +75,15 @@ public class VehicleController {
     public GenericResponse getCompanyVehiclesByOwnerId(@PathVariable Integer ownerId) {
         return vehicleService.getCompanyVehiclesByOwnerId ( ownerId );
     }
+
+    @GetMapping("/validate-chassis")
+    public GenericResponse validateChassisNo(@RequestParam("chassisNo") String chassisNo) {
+        boolean exists = vehicleService.validateChassisNo(chassisNo);
+        return GenericResponse.builder()
+                .status("success")
+                .code("200")
+                .message(exists ? "Chassis number already exists" : "Chassis number is available")
+                .body(exists)
+                .build();
+    }
 }

@@ -320,4 +320,13 @@ public class VehicleServiceImpl implements VehicleService {
         long totalReferences = mulkiaFrontCount + mulkiaBackCount + vehicleImageCount;
         return totalReferences > 0;
     }
+
+    @Override
+    public boolean validateChassisNo(String chassisNo) {
+        if (chassisNo == null || chassisNo.trim().isEmpty()) {
+            return false;
+        }
+        Optional<VehicleDetails> byChassisNo = vehicleRepository.findByChassisNo(chassisNo);
+        return byChassisNo.isPresent();
+    }
 }
