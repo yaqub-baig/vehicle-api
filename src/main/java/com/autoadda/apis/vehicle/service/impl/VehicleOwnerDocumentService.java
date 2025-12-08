@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Slf4j
 public class VehicleOwnerDocumentService {
+    public static final String SUCCESS = "success";
     private final VehicleOwnerDocumentRepository vehicleDocumentRepository;
     private final MediaFileRepository mediaFileRepository;
 
@@ -40,7 +41,7 @@ public class VehicleOwnerDocumentService {
         VehicleOwnerDocumentation save = vehicleDocumentRepository.save ( documentation );
 
         return GenericResponse.builder ( )
-                .status ( "success" )
+                .status (SUCCESS)
                 .code ( "200" )
                 .message ( "Vehicle owner document uploaded successfully" )
                 .body ( save )
@@ -51,7 +52,7 @@ public class VehicleOwnerDocumentService {
     public GenericResponse getVehicleOwnerDocument(Integer vehicleOwnerId) {
         VehicleOwnerDocumentation documentation = vehicleDocumentRepository.findByVehicleOwnerId ( vehicleOwnerId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle owner document not found" ) );
         return GenericResponse.builder ( )
-                .status ( "success" )
+                .status (SUCCESS)
                 .code ( "200" )
                 .message ( "Vehicle owner document fetched successfully" )
                 .body ( documentation )
@@ -77,7 +78,7 @@ public class VehicleOwnerDocumentService {
         }
         vehicleDocumentRepository.save ( documentation );
         return GenericResponse.builder ( )
-                .status ( "success" )
+                .status (SUCCESS)
                 .code ( "200" )
                 .message ( "Vehicle owner document updated successfully" )
                 .body ( documentation )

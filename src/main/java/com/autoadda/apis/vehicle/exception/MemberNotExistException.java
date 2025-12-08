@@ -5,7 +5,7 @@ package com.autoadda.apis.vehicle.exception;
  */
 public class MemberNotExistException extends Exception {
 
-	private String message;
+
 
 	public MemberNotExistException() {
 		super();
@@ -13,7 +13,6 @@ public class MemberNotExistException extends Exception {
 
 	public MemberNotExistException(String message) {
 		super(message);
-		this.message = message;
 	}
 
 	public MemberNotExistException(String message, Throwable cause) {

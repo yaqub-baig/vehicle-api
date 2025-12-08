@@ -7,7 +7,7 @@ import java.time.LocalDate;
 
 @Data
 public class VehicleListingResponse {
-    public Integer id;
+    private Integer id;
     private double price;
     private Status status;
     private LocalDate listedDate;

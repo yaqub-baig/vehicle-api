@@ -24,7 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class VehicleOwnerDocumentServiceTest {
+ class VehicleOwnerDocumentServiceTest {
 
     @Mock
     private VehicleOwnerDocumentRepository vehicleDocumentRepository;
@@ -155,7 +155,6 @@ public class VehicleOwnerDocumentServiceTest {
         // Assert
         assertNotNull(response);
         assertEquals("success", response.getStatus());
-//        assertEquals("200L", response.getCode());
         assertEquals("Vehicle owner document fetched successfully", response.getMessage());
         assertNotNull(response.getBody());
 

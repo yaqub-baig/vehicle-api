@@ -16,13 +16,14 @@ import static java.lang.String.format;
 @Service
 @RequiredArgsConstructor
 public class CompanyDocumentService {
+    public static final String SUCCESS = "success";
     private final CompanyDocumentRepository companyDocumentRepository;
     private final CompanyRepository companyRepository;
     private final MediaFileRepository mediaFileRepository;
 
     public GenericResponse uploadCompanyDocument(CompanyDocumentRequest companyDocumentRequest) {
         CompanyDocument companyDocument = new CompanyDocument ( );
-        companyDocument.setCompany ( companyRepository.findById ( companyDocumentRequest.getCompanyId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( format ( "company not found with this id  {}", companyDocumentRequest.getCompanyId ( ) ) ) ) );
+        companyDocument.setCompany ( companyRepository.findById ( companyDocumentRequest.getCompanyId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( format ( "company not found with this id  %s", companyDocumentRequest.getCompanyId ( ) ) ) ) );
         if ( companyDocumentRequest.getTradeLicenseImageId ( ) != null ) {
             MediaFile tradeLicenceId = mediaFileRepository.findById ( companyDocumentRequest.getTradeLicenseImageId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "trade licence image not found" ) );
             companyDocument.setTradeLicence ( tradeLicenceId );
@@ -34,7 +35,7 @@ public class CompanyDocumentService {
         }
         CompanyDocument save = companyDocumentRepository.save ( companyDocument );
         return GenericResponse.builder ( )
-                .status ( "success" )
+                .status (SUCCESS)
                 .code ( "200" )
                 .message ( "Vehicle owner document uploaded successfully" )
                 .body ( save )
@@ -44,7 +45,7 @@ public class CompanyDocumentService {
     public GenericResponse getCompanyDocument(Long companyId) {
         CompanyDocument companyDocument = companyDocumentRepository.findByCompanyId ( companyId ).orElseThrow ( () -> new ResourceNotFoundException ( "Company document not found" ) );
         return GenericResponse.builder ( )
-                .status ( "success" )
+                .status (SUCCESS)
                 .code ( "200" )
                 .message ( "Company document fetched successfully" )
                 .body ( companyDocument )
@@ -53,7 +54,7 @@ public class CompanyDocumentService {
 
     public GenericResponse updateCompanyDocument(Long companyId, CompanyDocumentRequest companyDocumentRequest) {
         CompanyDocument companyDocument = companyDocumentRepository.findByCompanyId ( companyId ).orElseThrow ( () -> new ResourceNotFoundException ( "Company document not found" ) );
-        companyDocument.setCompany ( companyRepository.findById ( companyDocumentRequest.getCompanyId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( format ( "company not found with this id  {}", companyDocumentRequest.getCompanyId ( ) ) ) ) );
+        companyDocument.setCompany ( companyRepository.findById ( companyDocumentRequest.getCompanyId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( format ( "company not found with this id  %s", companyDocumentRequest.getCompanyId ( ) ) ) ) );
         if ( companyDocumentRequest.getTradeLicenseImageId ( ) != null ) {
             MediaFile tradeLicenceId = mediaFileRepository.findById ( companyDocumentRequest.getTradeLicenseImageId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "trade licence image not found" ) );
             companyDocument.setTradeLicence ( tradeLicenceId );
@@ -64,7 +65,7 @@ public class CompanyDocumentService {
         }
         CompanyDocument save = companyDocumentRepository.save ( companyDocument );
         return GenericResponse.builder ( )
-                .status ( "success" )
+                .status (SUCCESS)
                 .code ( "200" )
                 .message ( "Vehicle owner document updated successfully" )
                 .body ( save )

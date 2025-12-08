@@ -5,18 +5,16 @@ package com.autoadda.apis.vehicle.exception;
  */
 public class CustomerNotExistException extends Exception {
 
-	private String message;
 
-	public CustomerNotExistException() {
-		super();
-	}
+    public CustomerNotExistException() {
+        super();
+    }
 
-	public CustomerNotExistException(String message) {
-		super(message);
-		this.message = message;
-	}
+    public CustomerNotExistException(String message) {
+        super(message);
+    }
 
-	public CustomerNotExistException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public CustomerNotExistException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

@@ -82,10 +82,8 @@ FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 # Install wget for health checks
-RUN apk add --no-cache wget
-
 # Create non-root user for security
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN apk add --no-cache wget && addgroup -S spring && adduser -S spring -G spring
 
 # Copy JAR from build stage
 COPY --from=build /build/target/*.jar app.jar

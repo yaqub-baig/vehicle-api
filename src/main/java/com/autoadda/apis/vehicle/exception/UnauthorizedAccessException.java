@@ -5,17 +5,19 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ResponseStatus(HttpStatus.UNAUTHORIZED)
 public class UnauthorizedAccessException extends RuntimeException {
-  private String message;
-  public UnauthorizedAccessException() {
-    super();
-  }
-  public UnauthorizedAccessException(String message) {
-    super(message);
-    this.message = message;
-  }
-  public UnauthorizedAccessException(String message, Throwable cause) {
-    super(message, cause);
-  }
+
+    public UnauthorizedAccessException() {
+        super();
+    }
+
+    public UnauthorizedAccessException(String message) {
+        super(message);
+
+    }
+
+    public UnauthorizedAccessException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
 
 

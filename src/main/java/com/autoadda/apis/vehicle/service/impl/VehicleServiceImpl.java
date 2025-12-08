@@ -2,7 +2,6 @@ package com.autoadda.apis.vehicle.service.impl;
 
 import com.autoadda.apis.vehicle.dao.CompanyRepository;
 import com.autoadda.apis.vehicle.dao.MediaFileRepository;
-import com.autoadda.apis.vehicle.dao.UserRepository;
 import com.autoadda.apis.vehicle.dao.VehicleDetailsRepository;
 import com.autoadda.apis.vehicle.entity.Company;
 import com.autoadda.apis.vehicle.entity.MediaFile;
@@ -18,9 +17,7 @@ import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
 import com.autoadda.apis.vehicle.service.VehicleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -32,70 +29,71 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Slf4j
 public class VehicleServiceImpl implements VehicleService {
+    public static final String VEHICLE_NOT_FOUND = "Vehicle not found";
+    public static final String SUCCESS = "success";
     private final VehicleDetailsRepository vehicleRepository;
     private final VehicleMapper vehicleMapper;
     private final MediaFileMapper mediaFileMapper;
-    private final UserRepository userRepository;
     private final CompanyService companyService;
     private final MediaFileRepository mediaFileRepository;
     private final CompanyRepository companyRepository;
+    private final MediaFileCleanupService mediaFileCleanupService;
 
     @Override
     public GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String autoAddaId) {
-        Optional<VehicleDetails> byChassisNo = vehicleRepository.findByChassisNo ( request.getChassisNo ( ) );
-        if(byChassisNo.isPresent ()){
-            throw new ResourceNotFoundException ( "Vehicle chassis number already exists" );
+        Optional<VehicleDetails> byChassisNo = vehicleRepository.findByChassisNo(request.getChassisNo());
+        if (byChassisNo.isPresent()) {
+            throw new ResourceNotFoundException("Vehicle chassis number already exists");
         }
-        VehicleDetails entity = vehicleMapper.toEntity ( request );
-        entity.setCustomerId ( Integer.parseInt ( autoAddaId ) );
-        if(request.getCompanyId ()!=null)
-        {
-            entity.setCompanyId ( request.getCompanyId ( ) );
+        VehicleDetails entity = vehicleMapper.toEntity(request);
+        entity.setCustomerId(Integer.parseInt(autoAddaId));
+        if (request.getCompanyId() != null) {
+            entity.setCompanyId(request.getCompanyId());
         }
-        if ( request.getMulkiaImageFront ( ) != null ) {
-            MediaFile mulkiaImageFront = mediaFileRepository.findById ( request.getMulkiaImageFront ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Mulkia image not found" ) );
-            entity.setMulkiaImageFront ( mulkiaImageFront );
+        if (request.getMulkiaImageFront() != null) {
+            MediaFile mulkiaImageFront = mediaFileRepository.findById(request.getMulkiaImageFront()).orElseThrow(() -> new ResourceNotFoundException("Mulkia image not found"));
+            entity.setMulkiaImageFront(mulkiaImageFront);
         }
-        if ( request.getMulkiaImageBack ( ) != null ) {
-            MediaFile mulkiaImageBack = mediaFileRepository.findById ( request.getMulkiaImageBack ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "Mulkia image not found" ) );
-            entity.setMulkiaImageBack ( mulkiaImageBack );
+        if (request.getMulkiaImageBack() != null) {
+            MediaFile mulkiaImageBack = mediaFileRepository.findById(request.getMulkiaImageBack()).orElseThrow(() -> new ResourceNotFoundException("Mulkia image not found"));
+            entity.setMulkiaImageBack(mulkiaImageBack);
         }
-        if ( request.getVehicleImages ( ) != null ) {
-            List<MediaFile> vehicleImages = request.getVehicleImages ( ).stream ( )
-                    .map ( id -> mediaFileRepository.findById ( id ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle image not found" ) ) ).toList ( );
-            entity.setVehicleImages ( vehicleImages );
+        if (request.getVehicleImages() != null) {
+            List<MediaFile> vehicleImages = request.getVehicleImages().stream()
+                    .map(id -> mediaFileRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Vehicle image not found"))).toList();
+            entity.setVehicleImages(vehicleImages);
         }
-        vehicleRepository.save ( entity );
-        return GenericResponse.builder ( )
-                .status ( "success" )
-                .code ( "200" )
-                .message ( "Vehicle added successfully" )
-                .build ( );
+        vehicleRepository.save(entity);
+        return GenericResponse.builder()
+                .status(SUCCESS)
+                .code("200")
+                .message("Vehicle added successfully")
+                .build();
     }
 
     @Override
     public GenericResponse getVehicleDetails(String autoAddaId) {
 
-        List<VehicleDetails> byCustomerMobileNumber = vehicleRepository.findByCustomerId ( Integer.parseInt ( autoAddaId ) );
-        log.info ( "2. Vehicle list size: {}", byCustomerMobileNumber.size ( ) );
-        List<VehicleDetailResponse> list1 = byCustomerMobileNumber.stream ( )
-                .sorted ( (o1, o2) -> o2.getId ( ).compareTo ( o1.getId ( ) ) )
-                .filter ( vehicleDetails -> ! vehicleDetails.isDeleted ( ) )
-                .map ( vehicleMapper::toResponse )
+        List<VehicleDetails> byCustomerMobileNumber = vehicleRepository.findByCustomerId(Integer.parseInt(autoAddaId));
+        log.info("2. Vehicle list size: {}", byCustomerMobileNumber.size());
+        List<VehicleDetailResponse> list1 = byCustomerMobileNumber.stream()
+                .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
+                .filter(vehicleDetails -> !vehicleDetails.isDeleted())
+                .map(vehicleMapper::toResponse)
                 .map(this::addCompanyResponse)
-                .toList ( );
+                .toList();
 
-        return GenericResponse.builder ( )
-                .body ( list1 )
-                .code ( "200" )
-                .message ( "success" )
-                .status ( "success" )
-                .build ( );
+        return GenericResponse.builder()
+                .body(list1)
+                .code("200")
+                .message(SUCCESS)
+                .status(SUCCESS)
+                .build();
     }
 
     private VehicleDetailResponse addCompanyResponse(VehicleDetailResponse vehicleDetailResponse) {
 
-        if (vehicleDetailResponse.getCompanyId()!=null) {
+        if (vehicleDetailResponse.getCompanyId() != null) {
             CompanyResponse company = companyService.getCompanyByIdV2(vehicleDetailResponse.getCompanyId());
             vehicleDetailResponse.setCompanyResponse(company);
         }
@@ -104,25 +102,25 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     public GenericResponse getVehicleDetailsByVehicleId(Integer vehicleId) {
-        VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
-        if ( vehicleDetails.isDeleted ( ) ) {
-            throw new ResourceNotFoundException ( "Vehicle deleted" );
+        VehicleDetails vehicleDetails = vehicleRepository.findById(vehicleId).orElseThrow(() -> new ResourceNotFoundException(VEHICLE_NOT_FOUND));
+        if (vehicleDetails.isDeleted()) {
+            throw new ResourceNotFoundException("Vehicle deleted");
         }
 
-        VehicleDetailResponse response = vehicleMapper.toResponse ( vehicleDetails );
-        VehicleDetailResponse responded=addCompanyResponse(response);
-        return GenericResponse.builder ( ).body ( responded )
-                .code ( "200" )
-                .message ( "success" ).build ( );
+        VehicleDetailResponse response = vehicleMapper.toResponse(vehicleDetails);
+        VehicleDetailResponse responded = addCompanyResponse(response);
+        return GenericResponse.builder().body(responded)
+                .code("200")
+                .message(SUCCESS).build();
 
     }
 
     @Override
     public GenericResponse getVehicleImagesByVehicleId(Integer vehicleId) {
-        List<MediaFileResponse> list = vehicleRepository.findImagesByVehicleId ( vehicleId )
-                .stream ( ).map ( mediaFileMapper::toResponse ).toList ( );
-        return GenericResponse.builder ( ).body ( list.isEmpty ( ) ? "No images found" : list )
-                .code ( "200" ).message ( "success" ).build ( );
+        List<MediaFileResponse> list = vehicleRepository.findImagesByVehicleId(vehicleId)
+                .stream().map(mediaFileMapper::toResponse).toList();
+        return GenericResponse.builder().body(list.isEmpty() ? "No images found" : list)
+                .code("200").message(SUCCESS).build();
     }
 
     @Override
@@ -141,34 +139,34 @@ public class VehicleServiceImpl implements VehicleService {
         VehicleDetails save = vehicleRepository.save(existing);
 
         if (!filesToCleanup.isEmpty()) {
-            scheduleMediaFileCleanup(filesToCleanup);
+            mediaFileCleanupService.scheduleMediaFileCleanup(filesToCleanup);
         }
 
         VehicleDetailResponse response = vehicleMapper.toResponse(save);
-        VehicleDetailResponse responded=  addCompanyResponse(response);
+        VehicleDetailResponse responded = addCompanyResponse(response);
         return GenericResponse.builder()
                 .body(responded)
                 .code("200")
-                .message("success")
-                .status("success")
+                .message(SUCCESS)
+                .status(SUCCESS)
                 .build();
     }
 
     @Override
     public GenericResponse deleteVehicleDetails(Integer vehicleId, String userId) {
-        VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
-        vehicleDetails.setDeleted ( true );
-        vehicleRepository.save ( vehicleDetails );
-        return GenericResponse.builder ( ).body ( "Vehicle deleted" ).code ( "200" ).message ( "success" ).status ( "success" ).build ( );
+        VehicleDetails vehicleDetails = vehicleRepository.findById(vehicleId).orElseThrow(() -> new ResourceNotFoundException(VEHICLE_NOT_FOUND));
+        vehicleDetails.setDeleted(true);
+        vehicleRepository.save(vehicleDetails);
+        return GenericResponse.builder().body("Vehicle deleted").code("200").message(SUCCESS).status(SUCCESS).build();
     }
 
     @Override
     public VehicleDetailResponse getVehicleDetailsByVehicleIdForIsc(Integer vehicleId) {
-        VehicleDetails vehicleDetails = vehicleRepository.findById ( vehicleId ).orElseThrow ( () -> new ResourceNotFoundException ( "Vehicle not found" ) );
-        if ( vehicleDetails.isDeleted ( ) ) {
-            throw new ResourceNotFoundException ( "Vehicle deleted" );
+        VehicleDetails vehicleDetails = vehicleRepository.findById(vehicleId).orElseThrow(() -> new ResourceNotFoundException(VEHICLE_NOT_FOUND));
+        if (vehicleDetails.isDeleted()) {
+            throw new ResourceNotFoundException("Vehicle deleted");
         }
-        return vehicleMapper.toResponse ( vehicleDetails );
+        return vehicleMapper.toResponse(vehicleDetails);
 
     }
 
@@ -176,19 +174,19 @@ public class VehicleServiceImpl implements VehicleService {
     public GenericResponse getVehiclesByCompanyId(Long companyId) {
         List<VehicleDetails> byCompanyId = vehicleRepository.findByCompanyId(companyId);
 
-        List<VehicleDetailResponse> list1 = byCompanyId.stream ( )
-                .sorted ( (o1, o2) -> o2.getId ( ).compareTo ( o1.getId ( ) ) )
-                .filter ( vehicleDetails -> ! vehicleDetails.isDeleted ( ) )
-                .map ( vehicleMapper::toResponse )
+        List<VehicleDetailResponse> list1 = byCompanyId.stream()
+                .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
+                .filter(vehicleDetails -> !vehicleDetails.isDeleted())
+                .map(vehicleMapper::toResponse)
                 .map(this::addCompanyResponse)
-                .toList ( );
+                .toList();
 
-        return GenericResponse.builder ( )
-                .body ( list1 )
-                .code ( "200" )
-                .message (list1.isEmpty ()? "No vehicles found" : "success" )
-                .status ( "success" )
-                .build ( );
+        return GenericResponse.builder()
+                .body(list1)
+                .code("200")
+                .message(list1.isEmpty() ? "No vehicles found" : SUCCESS)
+                .status(SUCCESS)
+                .build();
 
     }
 
@@ -206,8 +204,8 @@ public class VehicleServiceImpl implements VehicleService {
         return GenericResponse.builder()
                 .body(list1)
                 .code("200")
-                .message(list1.isEmpty() ? "No vehicles found" : "success")
-                .status("success")
+                .message(list1.isEmpty() ? "No vehicles found" : SUCCESS)
+                .status(SUCCESS)
                 .build();
     }
 
@@ -220,7 +218,7 @@ public class VehicleServiceImpl implements VehicleService {
                     .body(new ArrayList<>())
                     .code("200")
                     .message("No company found for this owner")
-                    .status("success")
+                    .status(SUCCESS)
                     .build();
         }
 
@@ -237,8 +235,8 @@ public class VehicleServiceImpl implements VehicleService {
         return GenericResponse.builder()
                 .body(vehicleResponses)
                 .code("200")
-                .message(vehicleResponses.isEmpty() ? "No vehicles found for this company" : "success")
-                .status("success")
+                .message(vehicleResponses.isEmpty() ? "No vehicles found for this company" : SUCCESS)
+                .status(SUCCESS)
                 .build();
     }
 
@@ -287,38 +285,6 @@ public class VehicleServiceImpl implements VehicleService {
             existing.getVehicleImages().clear();
             existing.getVehicleImages().addAll(newVehicleImages);
         }
-    }
-
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void scheduleMediaFileCleanup(List<Long> mediaFileIds) {
-        try {
-            Thread.sleep(3000);
-
-            for (Long fileId : mediaFileIds) {
-                try {
-                    if (!isMediaFileStillReferenced(fileId)) {
-                        mediaFileRepository.deleteById(fileId);
-                        log.info("Successfully cleaned up media file: {}", fileId);
-                    } else {
-                        log.info("Media file {} still referenced, skipping cleanup", fileId);
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to cleanup media file {}: {}", fileId, e.getMessage());
-                }
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.warn("Media file cleanup interrupted");
-        }
-    }
-
-    private boolean isMediaFileStillReferenced(Long mediaFileId) {
-        long mulkiaFrontCount = vehicleRepository.countByMulkiaImageFrontId(mediaFileId);
-        long mulkiaBackCount = vehicleRepository.countByMulkiaImageBackId(mediaFileId);
-        long vehicleImageCount = vehicleRepository.countByVehicleImageId(mediaFileId);
-        long totalReferences = mulkiaFrontCount + mulkiaBackCount + vehicleImageCount;
-        return totalReferences > 0;
     }
 
     @Override

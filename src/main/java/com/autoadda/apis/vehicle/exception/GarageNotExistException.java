@@ -5,18 +5,16 @@ package com.autoadda.apis.vehicle.exception;
  */
 public class GarageNotExistException extends Exception {
 
-	private String message;
 
-	public GarageNotExistException() {
-		super();
-	}
+    public GarageNotExistException() {
+        super();
+    }
 
-	public GarageNotExistException(String message) {
-		super(message);
-		this.message = message;
-	}
+    public GarageNotExistException(String message) {
+        super(message);
+    }
 
-	public GarageNotExistException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public GarageNotExistException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

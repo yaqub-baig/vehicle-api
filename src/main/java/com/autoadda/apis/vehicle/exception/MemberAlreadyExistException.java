@@ -5,18 +5,17 @@ package com.autoadda.apis.vehicle.exception;
  */
 public class MemberAlreadyExistException extends Exception {
 
-	private String message;
 
-	public MemberAlreadyExistException() {
-		super();
-	}
+    public MemberAlreadyExistException() {
+        super();
+    }
 
-	public MemberAlreadyExistException(String message) {
-		super(message);
-		this.message = message;
-	}
+    public MemberAlreadyExistException(String message) {
+        super(message);
 
-	public MemberAlreadyExistException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    }
+
+    public MemberAlreadyExistException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

@@ -5,9 +5,9 @@ import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
 
 public interface VehicleService {
-    GenericResponse addVehicleDetails(VehicleRegistrationRequest request,  String autoAddaId);
+    GenericResponse addVehicleDetails(VehicleRegistrationRequest request, String autoAddaId);
 
-    GenericResponse getVehicleDetails( String autoAddaId);
+    GenericResponse getVehicleDetails(String autoAddaId);
 
     GenericResponse getVehicleDetailsByVehicleId(Integer vehicleId);
 

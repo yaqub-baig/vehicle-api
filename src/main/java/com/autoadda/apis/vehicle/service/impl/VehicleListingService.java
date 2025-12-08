@@ -22,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class VehicleListingService {
+    public static final String SUCCESS = "success";
     private final VehicleListingRepository vehicleListingRepository;
     private final VehicleDetailsRepository vehicleDetailsRepository;
     private final VehicleListingMapper vehicleListingMapper;
@@ -30,7 +31,7 @@ public class VehicleListingService {
         VehicleListing vehicleListing = vehicleListingMapper.requestToEntity ( vehicleListingRequest );
         vehicleListing.setVehicle ( vehicleDetailsRepository.findById ( vehicleListingRequest.getVehicleId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "invalid vehicle id" ) ) );
         VehicleListing listedVehicle = vehicleListingRepository.save ( vehicleListing );
-        return GenericResponse.builder ( ).code ( "200" ).status ( "success" ).message ( "Vehicle listed successfully" ).body ( vehicleListingMapper.entityToResponse ( listedVehicle ) ).build ( );
+        return GenericResponse.builder ( ).code ( "200" ).status (SUCCESS).message ( "Vehicle listed successfully" ).body ( vehicleListingMapper.entityToResponse ( listedVehicle ) ).build ( );
     }
     public GenericResponse getVehicleListings(VehicleSearchCriteria criteria) {
         try {
@@ -53,7 +54,7 @@ public class VehicleListingService {
             return GenericResponse.builder()
                     .body(responseList)
                     .code("200")
-                    .message("success")
+                    .message(SUCCESS)
                     .build();
 
         } catch (Exception e) {
@@ -81,7 +82,7 @@ public class VehicleListingService {
     }
 
     public GenericResponse getVehicleListingById(Integer id) {
-        return GenericResponse.builder ( ).status ( "success" )
+        return GenericResponse.builder ( ).status (SUCCESS)
                 .code ( "200" )
                 .message ( "vehicle retrieved successfully" )
                 .body ( vehicleListingRepository.findById ( id )
@@ -93,7 +94,7 @@ public class VehicleListingService {
     public GenericResponse getVehicleListingsByUserId(Integer userId) {
         List<VehicleListing> byVehicleCustomerId = vehicleListingRepository.findByVehicleCustomerId ( userId );
         List<VehicleListingResponse> vehicleListingResponseStream = byVehicleCustomerId.stream ( ).map ( vehicleListingMapper::entityToResponse ).toList();
-        return GenericResponse.builder().body(vehicleListingResponseStream).code("200").message("success").build();
+        return GenericResponse.builder().body(vehicleListingResponseStream).code("200").message(SUCCESS).build();
     }
 
     public GenericResponse updateVehicleListing(Integer id, VehicleListingRequest vehicleListingRequest) {
@@ -112,6 +113,6 @@ public class VehicleListingService {
         }
         VehicleListing save = vehicleListingRepository.save ( vehicleListing );
         VehicleListingResponse body = vehicleListingMapper.entityToResponse ( save );
-        return GenericResponse.builder().body( body ).code("200").message("success").build();
+        return GenericResponse.builder().body( body ).code("200").message(SUCCESS).build();
     }
 }

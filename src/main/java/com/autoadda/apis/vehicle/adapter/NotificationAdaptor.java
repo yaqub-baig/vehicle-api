@@ -18,8 +18,7 @@ public class NotificationAdaptor {
 	public GenericResponse callNotificationService(NotificationRequest request) {
 		RestTemplate restTemplate = new RestTemplate();
 		HttpEntity<NotificationRequest> httpRequest = new HttpEntity<>(request);
-		GenericResponse response = restTemplate.postForObject(notificationServiceUrl, httpRequest, GenericResponse.class);
-		return response;
+		return restTemplate.postForObject(notificationServiceUrl, httpRequest, GenericResponse.class);
 	}
 
 }

@@ -1,6 +1,7 @@
 package com.autoadda.apis.vehicle.config;
 
 
+import com.autoadda.apis.vehicle.exception.FileStorageException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -30,7 +31,7 @@ public class FileStorageConfig implements WebMvcConfigurer {
             log.info("Created directories at: " + uploadPath.toAbsolutePath());
         } catch (IOException e) {
             log.error("Could not initialize storage directories", e);
-            throw new RuntimeException("Could not initialize storage directories", e);
+            throw new FileStorageException("Could not initialize storage directories", e);
         }
     }
 

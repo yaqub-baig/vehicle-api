@@ -5,15 +5,17 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ResponseStatus(HttpStatus.CONFLICT)
 public class ConflictException extends RuntimeException {
-    private String message;
+
     public ConflictException() {
-        super ( );
+        super();
     }
+
     public ConflictException(String message) {
-        super ( message );
-        this.message = message;
+        super(message);
+
     }
+
     public ConflictException(String message, Throwable cause) {
-        super ( message, cause );
+        super(message, cause);
     }
 }

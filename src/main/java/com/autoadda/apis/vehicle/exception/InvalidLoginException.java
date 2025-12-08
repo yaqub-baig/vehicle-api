@@ -5,7 +5,7 @@ package com.autoadda.apis.vehicle.exception;
  */
 public class InvalidLoginException extends Exception {
 
-	private String message;
+
 
 	public InvalidLoginException() {
 		super();
@@ -13,7 +13,7 @@ public class InvalidLoginException extends Exception {
 
 	public InvalidLoginException(String message) {
 		super(message);
-		this.message = message;
+
 	}
 
 	public InvalidLoginException(String message, Throwable cause) {
