@@ -1,0 +1,175 @@
+name: Deploy Backend Service
+
+on:
+  push:
+    branches: [ main, production ]
+  workflow_dispatch:
+
+env:
+  SERVICE_NAME: vehicle  # CHANGE THIS: identity/garage/vehicle/quote/part/otherservice
+  SERVICE_PORT: 8030      # CHANGE THIS: 8010/8020/8030/8050/8060/9010
+  JAVA_VERSION: 17        # CHANGE THIS: 21 / 21  / 17 / 21 / 17 / 21
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: |
+          echo "Building ${{ env.SERVICE_NAME }} service..."
+          mvn clean package -DskipTests
+
+      - name: Get JAR filename
+        id: jar_name
+        run: |
+          JAR_FILE=$(ls target/*.jar | head -1 | xargs basename)
+          echo "jar_file=$JAR_FILE" >> $GITHUB_OUTPUT
+          echo "Found JAR: $JAR_FILE"
+
+      - name: Create backup on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            # Create directories
+            mkdir -p ~/apps/backend/${{ env.SERVICE_NAME }}/target
+            mkdir -p ~/backups/backend-rollback
+            
+            # Backup current JAR if exists
+            if [ -f ~/apps/backend/${{ env.SERVICE_NAME }}/target/*.jar ]; then
+              echo "Creating backup..."
+              cp ~/apps/backend/${{ env.SERVICE_NAME }}/target/*.jar \
+                 ~/backups/backend-rollback/${{ env.SERVICE_NAME }}-$(date +%Y%m%d_%H%M%S).jar
+            
+              # Keep only last 5 backups
+              cd ~/backups/backend-rollback
+              ls -t ${{ env.SERVICE_NAME }}-*.jar | tail -n +6 | xargs rm -f 2>/dev/null || true
+            fi
+
+      - name: Copy JAR to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "target/${{ steps.jar_name.outputs.jar_file }}"
+          target: "/home/adminmylstech/apps/backend/${{ env.SERVICE_NAME }}/"
+
+      - name: Deploy service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd ~/apps/backend/${{ env.SERVICE_NAME }}
+            
+            echo "=========================================="
+            echo "Deploying ${{ env.SERVICE_NAME }} service"
+            echo "=========================================="
+            
+            # Check if service exists in PM2
+            if pm2 list | grep -q "${{ env.SERVICE_NAME }}"; then
+              echo "Service exists in PM2, restarting..."
+              pm2 restart ${{ env.SERVICE_NAME }}
+            else
+              echo "Service not in PM2, starting fresh..."
+              ~/apps/scripts/start-service.sh \
+                ${{ env.SERVICE_NAME }} \
+                ${{ env.SERVICE_PORT }} \
+                ${{ env.JAVA_VERSION }} \
+                ~/apps/backend/${{ env.SERVICE_NAME }}/target/${{ steps.jar_name.outputs.jar_file }}
+            fi
+            
+            # Save PM2 configuration
+            pm2 save
+            
+            echo ""
+            echo "Waiting for service to start..."
+            sleep 10
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            echo "=========================================="
+            echo "Verifying deployment"
+            echo "=========================================="
+            
+            # Check PM2 status
+            if pm2 list | grep -q "${{ env.SERVICE_NAME }}.*online"; then
+              echo "✓ PM2 status: Service is running"
+            else
+              echo "✗ PM2 status: Service is NOT running"
+              pm2 logs ${{ env.SERVICE_NAME }} --lines 50 --nostream
+              exit 1
+            fi
+            
+            # Check health endpoint
+            echo ""
+            echo "Checking health endpoint..."
+            max_attempts=5
+            attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "Attempt $attempt of $max_attempts..."
+              response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:${{ env.SERVICE_PORT }}/actuator/health)
+            
+              if [ "$response" = "200" ]; then
+                echo "✓ Health check passed (HTTP $response)"
+            
+                # Show service info
+                echo ""
+                echo "Service details:"
+                pm2 info ${{ env.SERVICE_NAME }} | grep -E "name|status|uptime|restarts|memory|cpu"
+            
+                exit 0
+              else
+                echo "⚠ Health check returned HTTP $response"
+                if [ $attempt -lt $max_attempts ]; then
+                  echo "Waiting 5 seconds before retry..."
+                  sleep 5
+                fi
+              fi
+            
+              attempt=$((attempt + 1))
+            done
+            
+            echo "✗ Health check failed after $max_attempts attempts"
+            echo ""
+            echo "Recent logs:"
+            pm2 logs ${{ env.SERVICE_NAME }} --lines 30 --nostream
+            exit 1
+
+      - name: Deployment notification
+        if: always()
+        run: |
+          echo "=========================================="
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Deployment successful: ${{ env.SERVICE_NAME }}"
+            echo "🌐 Service: https://${{ env.SERVICE_NAME }}.autoadda.mylstech.com"
+            echo "🏥 Health: https://${{ env.SERVICE_NAME }}.autoadda.mylstech.com/actuator/health"
+          else
+            echo "❌ Deployment failed: ${{ env.SERVICE_NAME }}"
+            echo "Check the logs above for details"
+          fi
+          echo "=========================================="
