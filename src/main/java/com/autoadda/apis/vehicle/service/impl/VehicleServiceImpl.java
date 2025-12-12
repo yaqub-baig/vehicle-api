@@ -295,4 +295,23 @@ public class VehicleServiceImpl implements VehicleService {
         Optional<VehicleDetails> byChassisNo = vehicleRepository.findByChassisNo(chassisNo);
         return byChassisNo.isPresent();
     }
+
+    @Override
+    public GenericResponse getAllVehicle() {
+        List<VehicleDetails> allVehicles = vehicleRepository.findAll();
+        log.info("2. Vehicle list size: {}", allVehicles.size());
+        List<VehicleDetailResponse> list1 = allVehicles.stream()
+                .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
+//                .filter(vehicleDetails -> !vehicleDetails.isDeleted())
+                .map(vehicleMapper::toResponse)
+                .map(this::addCompanyResponse)
+                .toList();
+
+        return GenericResponse.builder()
+                .body(list1)
+                .code("200")
+                .message(SUCCESS)
+                .status(SUCCESS)
+                .build();
+    }
 }

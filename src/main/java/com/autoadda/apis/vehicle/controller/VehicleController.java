@@ -86,4 +86,8 @@ public class VehicleController {
                 .body(exists)
                 .build();
     }
+    @GetMapping("/all")
+    public GenericResponse getAllVehicle(){
+        return vehicleService.getAllVehicle();
+    }
 }

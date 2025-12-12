@@ -26,4 +26,6 @@ public interface VehicleService {
     GenericResponse getCompanyVehiclesByOwnerId(Integer ownerId);
 
     boolean validateChassisNo(String chassisNo);
+
+    GenericResponse getAllVehicle();
 }
