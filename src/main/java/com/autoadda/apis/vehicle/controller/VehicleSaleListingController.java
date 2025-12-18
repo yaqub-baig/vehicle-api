@@ -54,4 +54,33 @@ public class VehicleSaleListingController {
         return vehicleListingService.updateVehicleListing ( id, vehicleListingRequest );
     }
 
+    @GetMapping("/paginated")
+    public GenericResponse getVehicleListingsPaginated(
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) Double price,
+            @RequestParam(required = false) String brand,
+            @RequestParam(required = false) String model,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDirection) {
+
+        VehicleSearchCriteria criteria = VehicleSearchCriteria.builder()
+                .location(location)
+                .price(price)
+                .brand(brand)
+                .model(model)
+                .year(year)
+                .globalSearch(search)
+                .page(page)
+                .size(size)
+                .sortBy(sortBy)
+                .sortDirection(sortDirection)
+                .build();
+
+        return vehicleListingService.getVehicleListingsWithPagination(criteria);
+    }
+
 }

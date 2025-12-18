@@ -8,10 +8,12 @@ import com.autoadda.apis.vehicle.mapper.VehicleListingMapper;
 import com.autoadda.apis.vehicle.request.VehicleListingRequest;
 import com.autoadda.apis.vehicle.request.VehicleSearchCriteria;
 import com.autoadda.apis.vehicle.response.GenericResponse;
+import com.autoadda.apis.vehicle.response.PagedResponse;
 import com.autoadda.apis.vehicle.response.VehicleListingResponse;
 import com.autoadda.apis.vehicle.util.Status;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -114,5 +116,70 @@ public class VehicleListingService {
         VehicleListing save = vehicleListingRepository.save ( vehicleListing );
         VehicleListingResponse body = vehicleListingMapper.entityToResponse ( save );
         return GenericResponse.builder().body( body ).code("200").message(SUCCESS).build();
+    }
+
+    // Paginated methods
+    public GenericResponse getVehicleListingsWithPagination(VehicleSearchCriteria criteria) {
+        try {
+            // Validate sort parameters (will throw IllegalArgumentException if invalid)
+            criteria.getSortByOrDefault();
+            criteria.getSortDirectionOrDefault();
+
+            // Find vehicles with pagination
+            Page<VehicleListing> page = findVehiclesByCriteriaWithPagination(criteria);
+
+            // Map entities to responses
+            List<VehicleListingResponse> responseList = page.getContent().stream()
+                    .map(vehicleListingMapper::entityToResponse)
+                    .toList();
+
+            // Build paged response
+            PagedResponse<VehicleListingResponse> pagedResponse = PagedResponse.<VehicleListingResponse>builder()
+                    .content(responseList)
+                    .pageNumber(page.getNumber())
+                    .pageSize(page.getSize())
+                    .totalElements(page.getTotalElements())
+                    .totalPages(page.getTotalPages())
+                    .first(page.isFirst())
+                    .last(page.isLast())
+                    .empty(page.isEmpty())
+                    .numberOfElements(page.getNumberOfElements())
+                    .build();
+
+            return GenericResponse.builder()
+                    .body(pagedResponse)
+                    .code("200")
+                    .message(SUCCESS)
+                    .build();
+
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid pagination parameters: {}", e.getMessage(), e);
+            return GenericResponse.builder()
+                    .body(null)
+                    .code("400")
+                    .status("failed")
+                    .message(e.getMessage())
+                    .build();
+        } catch (Exception e) {
+            log.error("Error fetching vehicle listings: {}", e.getMessage(), e);
+            return GenericResponse.builder()
+                    .body(null)
+                    .code("500")
+                    .status("failed")
+                    .message("Error occurred while fetching vehicle listings")
+                    .build();
+        }
+    }
+
+    private Page<VehicleListing> findVehiclesByCriteriaWithPagination(VehicleSearchCriteria criteria) {
+        if (criteria.hasGlobalSearch() && !criteria.hasSpecificCriteria()) {
+            return vehicleListingRepository.findByAdvancedSearchWithPagination(
+                    criteria.getGlobalSearch(),
+                    criteria
+            );
+        }
+
+        // For any search criteria or default case
+        return vehicleListingRepository.findByCriteriaWithPagination(criteria);
     }
 }

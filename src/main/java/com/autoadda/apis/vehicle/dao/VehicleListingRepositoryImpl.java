@@ -3,12 +3,18 @@ package com.autoadda.apis.vehicle.dao;
 import com.autoadda.apis.vehicle.entity.VehicleListing;
 import com.autoadda.apis.vehicle.request.VehicleSearchCriteria;
 import com.autoadda.apis.vehicle.util.Status;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Expression;
+import javax.persistence.criteria.Order;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import java.util.ArrayList;
@@ -19,6 +25,9 @@ import java.util.List;
 public class VehicleListingRepositoryImpl implements VehicleListingCustomRepository {
 
     private static final String VEHICLE = "vehicle";
+    private static final String STATUS = "status";
+    private static final String CREATED_AT = "createdAt";
+
     @PersistenceContext
     private EntityManager entityManager;
 
@@ -117,5 +126,186 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
                 .orderBy ( cb.desc ( vehicle.get ( "createdAt" ) ) );
 
         return entityManager.createQuery ( query ).getResultList ( );
+    }
+
+    // Paginated methods
+
+    @Override
+    public Page<VehicleListing> findByCriteriaWithPagination(VehicleSearchCriteria criteria) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Build data query
+        CriteriaQuery<VehicleListing> dataQuery = cb.createQuery(VehicleListing.class);
+        Root<VehicleListing> dataRoot = dataQuery.from(VehicleListing.class);
+
+        // Build predicates
+        List<Predicate> predicates = buildPredicates(cb, dataRoot, criteria);
+
+        // Apply predicates
+        dataQuery.where(cb.and(predicates.toArray(new Predicate[0])));
+
+        // Apply sorting
+        Order order = buildOrder(cb, dataRoot, criteria);
+        dataQuery.orderBy(order);
+
+        // Create typed query
+        TypedQuery<VehicleListing> typedQuery = entityManager.createQuery(dataQuery);
+
+        // Apply pagination
+        int page = criteria.getPageOrDefault();
+        int size = criteria.getSizeOrDefault();
+        typedQuery.setFirstResult(page * size);
+        typedQuery.setMaxResults(size);
+
+        // Execute data query
+        List<VehicleListing> results = typedQuery.getResultList();
+
+        // Execute count query
+        long total = executeCountQuery(cb, predicates);
+
+        // Return PageImpl
+        return new PageImpl<>(results, PageRequest.of(page, size), total);
+    }
+
+    @Override
+    public Page<VehicleListing> findByAdvancedSearchWithPagination(String searchQuery, VehicleSearchCriteria criteria) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Build data query
+        CriteriaQuery<VehicleListing> dataQuery = cb.createQuery(VehicleListing.class);
+        Root<VehicleListing> dataRoot = dataQuery.from(VehicleListing.class);
+
+        // Build search predicates
+        List<Predicate> predicates = buildAdvancedSearchPredicates(cb, dataRoot, searchQuery);
+
+        // Apply predicates
+        dataQuery.where(cb.and(predicates.toArray(new Predicate[0])));
+
+        // Apply sorting
+        Order order = buildOrder(cb, dataRoot, criteria);
+        dataQuery.orderBy(order);
+
+        // Create typed query
+        TypedQuery<VehicleListing> typedQuery = entityManager.createQuery(dataQuery);
+
+        // Apply pagination
+        int page = criteria.getPageOrDefault();
+        int size = criteria.getSizeOrDefault();
+        typedQuery.setFirstResult(page * size);
+        typedQuery.setMaxResults(size);
+
+        // Execute data query
+        List<VehicleListing> results = typedQuery.getResultList();
+
+        // Execute count query
+        long total = executeCountQuery(cb, predicates);
+
+        // Return PageImpl
+        return new PageImpl<>(results, PageRequest.of(page, size), total);
+    }
+
+    // Helper methods
+
+    private List<Predicate> buildPredicates(CriteriaBuilder cb, Root<VehicleListing> vehicle, VehicleSearchCriteria criteria) {
+        List<Predicate> predicates = new ArrayList<>();
+
+        // Always exclude removed vehicles
+        predicates.add(cb.notEqual(vehicle.get(STATUS), Status.REMOVED));
+
+        // Add conditions based on provided criteria
+        if (criteria.hasLocation()) {
+            predicates.add(cb.equal(
+                    cb.lower(vehicle.get("city")),
+                    criteria.getLocation().toLowerCase().trim()
+            ));
+        }
+
+        if (criteria.hasPrice()) {
+            predicates.add(cb.lessThanOrEqualTo(
+                    vehicle.get("price"),
+                    criteria.getPrice()
+            ));
+        }
+
+        if (criteria.hasBrand()) {
+            predicates.add(cb.equal(
+                    cb.lower(vehicle.get(VEHICLE).get("brand")),
+                    criteria.getBrand().toLowerCase().trim()
+            ));
+        }
+
+        if (criteria.hasModel()) {
+            predicates.add(cb.equal(
+                    cb.lower(vehicle.get(VEHICLE).get("model")),
+                    criteria.getModel().toLowerCase().trim()
+            ));
+        }
+
+        if (criteria.hasYear()) {
+            predicates.add(cb.equal(
+                    vehicle.get(VEHICLE).get("year"),
+                    criteria.getYear()
+            ));
+        }
+
+        return predicates;
+    }
+
+    private List<Predicate> buildAdvancedSearchPredicates(CriteriaBuilder cb, Root<VehicleListing> vehicle, String searchQuery) {
+        List<Predicate> predicates = new ArrayList<>();
+
+        // Always exclude removed vehicles
+        predicates.add(cb.notEqual(vehicle.get(STATUS), Status.REMOVED));
+
+        // Split search query into individual words
+        String[] searchWords = searchQuery.toLowerCase().trim().split("\\s+");
+        List<Predicate> wordPredicates = new ArrayList<>();
+
+        for (String word : searchWords) {
+            if (!word.isEmpty()) {
+                String wordPattern = "%" + word + "%";
+
+                List<Predicate> fieldPredicates = new ArrayList<>();
+
+                // Search each word in multiple fields
+                fieldPredicates.add(cb.like(cb.lower(vehicle.get("city")), wordPattern));
+                fieldPredicates.add(cb.like(cb.lower(vehicle.get(VEHICLE).get("brand")), wordPattern));
+                fieldPredicates.add(cb.like(cb.lower(vehicle.get(VEHICLE).get("model")), wordPattern));
+                fieldPredicates.add(cb.like(cb.lower(vehicle.get("description")), wordPattern));
+
+                // Each word should match at least one field
+                wordPredicates.add(cb.or(fieldPredicates.toArray(new Predicate[0])));
+            }
+        }
+
+        // All words should match
+        if (!wordPredicates.isEmpty()) {
+            predicates.add(cb.and(wordPredicates.toArray(new Predicate[0])));
+        }
+
+        return predicates;
+    }
+
+    private Order buildOrder(CriteriaBuilder cb, Root<VehicleListing> vehicle, VehicleSearchCriteria criteria) {
+        String sortBy = criteria.getSortByOrDefault();
+        String sortDirection = criteria.getSortDirectionOrDefault();
+
+        Expression<?> sortExpression = vehicle.get(sortBy);
+
+        if ("DESC".equals(sortDirection)) {
+            return cb.desc(sortExpression);
+        } else {
+            return cb.asc(sortExpression);
+        }
+    }
+
+    private long executeCountQuery(CriteriaBuilder cb, List<Predicate> predicates) {
+        CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
+        Root<VehicleListing> countRoot = countQuery.from(VehicleListing.class);
+
+        countQuery.select(cb.count(countRoot));
+        countQuery.where(cb.and(predicates.toArray(new Predicate[0])));
+
+        return entityManager.createQuery(countQuery).getSingleResult();
     }
 }

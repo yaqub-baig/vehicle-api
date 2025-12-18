@@ -2,6 +2,8 @@ package com.autoadda.apis.vehicle.dao;
 
 import com.autoadda.apis.vehicle.entity.VehicleListing;
 import com.autoadda.apis.vehicle.request.VehicleSearchCriteria;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,5 +16,8 @@ public interface VehicleListingRepository extends JpaRepository<VehicleListing, 
 
     List<VehicleListing> findByVehicleCustomerId(Integer customerId);
     List<VehicleListing> findAllByOrderByCreatedAtDesc();
+
+    // Paginated method
+    Page<VehicleListing> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
 }
