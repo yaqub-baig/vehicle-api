@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "identity-api", url = "http://localhost:8010/api/v1")
 public interface IdentityClient {
     @GetMapping("/auth/{id}")
-    public UserResponse getUser(@PathVariable Integer id);
+    UserResponse getUser(@PathVariable Integer id);
     @PutMapping("/auth/update/role/{id}")
     GenericResponse updateRole(@PathVariable Integer id, @RequestParam ERole role);
 

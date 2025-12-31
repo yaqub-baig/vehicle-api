@@ -27,20 +27,24 @@ public class MediaFileCleanupService {
             Thread.sleep(3000);
 
             for (Long fileId : mediaFileIds) {
-                try {
-                    if (!isMediaFileStillReferenced(fileId)) {
-                        mediaFileRepository.deleteById(fileId);
-                        log.info("Successfully cleaned up media file: {}", fileId);
-                    } else {
-                        log.info("Media file {} still referenced, skipping cleanup", fileId);
-                    }
-                } catch (Exception e) {
-                    log.error("Error cleaning up media file {}: {}", fileId, e.getMessage());
-                }
+                cleanupSingleMediaFile(fileId);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.error("Media file cleanup interrupted: {}", e.getMessage());
+        }
+    }
+
+    private void cleanupSingleMediaFile(Long fileId) {
+        try {
+            if (!isMediaFileStillReferenced(fileId)) {
+                mediaFileRepository.deleteById(fileId);
+                log.info("Successfully cleaned up media file: {}", fileId);
+            } else {
+                log.info("Media file {} still referenced, skipping cleanup", fileId);
+            }
+        } catch (Exception e) {
+            log.error("Error cleaning up media file {}: {}", fileId, e.getMessage());
         }
     }
 

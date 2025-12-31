@@ -41,7 +41,7 @@ public class MediaFileServiceImpl implements MediaFileService {
 
         List<MediaFile> mediaFileResponses = new ArrayList<> ( );
         if ( files.isEmpty ( ) ) {
-             throw new RuntimeException ( "No files uploaded" );
+             throw new ResourceNotFoundException ( "No files uploaded" );
         }
         for (MultipartFile file : files) {
             // 1. Detect type
@@ -66,7 +66,6 @@ public class MediaFileServiceImpl implements MediaFileService {
             String url = baseUrl + "/uploads/" + subFolder + "/" + fileName;
             log.info ( "5. Adding to response" );
             log.info ( "File uploaded: {}, URL: {}", file.getOriginalFilename ( ), url );
-//            MediaFileResponse mediaFileResponse = mediaFileMapper.toResponse(save,url);
             // 5. Add to response
             mediaFileResponses.add ( save );
         }

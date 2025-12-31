@@ -27,6 +27,8 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
     private static final String VEHICLE = "vehicle";
     private static final String STATUS = "status";
     private static final String CREATED_AT = "createdAt";
+    public static final String BRAND = "brand";
+    public static final String MODEL = "model";
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -37,7 +39,7 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
         Root<VehicleListing> vehicle = query.from ( VehicleListing.class );
         List<Predicate> predicates = new ArrayList<> ( );
         predicates.add ( cb.notEqual (
-                vehicle.get ( "status" ),
+                vehicle.get ( STATUS ),
                 Status.REMOVED
         ) );
         // Add conditions based on provided criteria
@@ -57,14 +59,14 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
 
         if ( criteria.hasBrand ( ) ) {
             predicates.add ( cb.equal (
-                    cb.lower ( vehicle.get ( VEHICLE ).get ( "brand" ) ),
+                    cb.lower ( vehicle.get ( VEHICLE ).get (BRAND) ),
                     criteria.getBrand ( ).toLowerCase ( ).trim ( )
             ) );
         }
 
         if ( criteria.hasModel ( ) ) {
             predicates.add ( cb.equal (
-                    cb.lower ( vehicle.get ( VEHICLE ).get ( "model" ) ),
+                    cb.lower ( vehicle.get ( VEHICLE ).get (MODEL) ),
                     criteria.getModel ( ).toLowerCase ( ).trim ( )
             ) );
         }
@@ -78,7 +80,7 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
 
         // Combine all predicates with AND
         query.where ( cb.and ( predicates.toArray ( new Predicate[0] ) ) )
-                .orderBy ( cb.desc ( vehicle.get ( "createdAt" ) ) );
+                .orderBy ( cb.desc ( vehicle.get ( CREATED_AT ) ) );
 
         return entityManager.createQuery ( query ).getResultList ( );
     }
@@ -92,7 +94,7 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
 
         // Always exclude removed vehicles
         predicates.add ( cb.notEqual (
-                vehicle.get ( "status" ),
+                vehicle.get ( STATUS ),
                 Status.REMOVED
         ) );
 
@@ -108,8 +110,8 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
 
                 // Search each word in multiple fields
                 fieldPredicates.add ( cb.like ( cb.lower ( vehicle.get ( "city" ) ), wordPattern ) );
-                fieldPredicates.add ( cb.like ( cb.lower ( vehicle.get ( VEHICLE ).get ( "brand" ) ), wordPattern ) );
-                fieldPredicates.add ( cb.like ( cb.lower ( vehicle.get ( VEHICLE ).get ( "model" ) ), wordPattern ) );
+                fieldPredicates.add ( cb.like ( cb.lower ( vehicle.get ( VEHICLE ).get (BRAND) ), wordPattern ) );
+                fieldPredicates.add ( cb.like ( cb.lower ( vehicle.get ( VEHICLE ).get (MODEL) ), wordPattern ) );
                 fieldPredicates.add ( cb.like ( cb.lower ( vehicle.get ( "description" ) ), wordPattern ) );
 
                 // Each word should match at least one field
@@ -123,7 +125,7 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
         }
 
         query.where ( cb.and ( predicates.toArray ( new Predicate[0] ) ) )
-                .orderBy ( cb.desc ( vehicle.get ( "createdAt" ) ) );
+                .orderBy ( cb.desc ( vehicle.get ( CREATED_AT ) ) );
 
         return entityManager.createQuery ( query ).getResultList ( );
     }
@@ -229,14 +231,14 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
 
         if (criteria.hasBrand()) {
             predicates.add(cb.equal(
-                    cb.lower(vehicle.get(VEHICLE).get("brand")),
+                    cb.lower(vehicle.get(VEHICLE).get(BRAND)),
                     criteria.getBrand().toLowerCase().trim()
             ));
         }
 
         if (criteria.hasModel()) {
             predicates.add(cb.equal(
-                    cb.lower(vehicle.get(VEHICLE).get("model")),
+                    cb.lower(vehicle.get(VEHICLE).get(MODEL)),
                     criteria.getModel().toLowerCase().trim()
             ));
         }
@@ -269,8 +271,8 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
 
                 // Search each word in multiple fields
                 fieldPredicates.add(cb.like(cb.lower(vehicle.get("city")), wordPattern));
-                fieldPredicates.add(cb.like(cb.lower(vehicle.get(VEHICLE).get("brand")), wordPattern));
-                fieldPredicates.add(cb.like(cb.lower(vehicle.get(VEHICLE).get("model")), wordPattern));
+                fieldPredicates.add(cb.like(cb.lower(vehicle.get(VEHICLE).get(BRAND)), wordPattern));
+                fieldPredicates.add(cb.like(cb.lower(vehicle.get(VEHICLE).get(MODEL)), wordPattern));
                 fieldPredicates.add(cb.like(cb.lower(vehicle.get("description")), wordPattern));
 
                 // Each word should match at least one field

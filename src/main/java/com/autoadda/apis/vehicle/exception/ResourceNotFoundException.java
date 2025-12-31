@@ -1,7 +1,6 @@
 package com.autoadda.apis.vehicle.exception;
 
 public class ResourceNotFoundException extends RuntimeException {
-    private String message;
 
     public ResourceNotFoundException() {
         super ( );
@@ -9,7 +8,6 @@ public class ResourceNotFoundException extends RuntimeException {
 
     public ResourceNotFoundException(String message) {
         super ( message );
-        this.message = message;
     }
 
     public ResourceNotFoundException(String message, Throwable cause) {

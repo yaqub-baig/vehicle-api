@@ -31,7 +31,7 @@ public class VehicleSearchCriteria {
     public static final int MAX_SIZE = 100;
     public static final String DEFAULT_SORT_BY = "createdAt";
     public static final String DEFAULT_SORT_DIRECTION = "DESC";
-    public static final Set<String> VALID_SORT_FIELDS = Set.of("id", "price", "listedDate", "createdAt");
+    public static final Set<String> VALID_SORT_FIELDS = Set.of("id", "price", "listedDate", DEFAULT_SORT_BY);
 
     public boolean hasAnyCriteria() {
         return hasLocation() || hasPrice() || hasBrand() || hasModel() || hasYear() || hasGlobalSearch();
