@@ -1,6 +1,6 @@
 package com.autoadda.apis.vehicle.mapper;
 
-import com.autoadda.apis.vehicle.clients.IdentityClient;
+import com.autoadda.apis.vehicle.clients.AuthClient;
 import com.autoadda.apis.vehicle.dao.MediaFileRepository;
 import com.autoadda.apis.vehicle.entity.Company;
 import com.autoadda.apis.vehicle.entity.MediaFile;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 public class CompanyMapper {
-    private final IdentityClient identityClient;
+    private final AuthClient identityClient;
     private final MediaFileRepository mediaFileRepository;
     public Company toEntity(CompanyRequest companyRequest) {
         Company company = new Company ( );

@@ -1,6 +1,6 @@
 package com.autoadda.apis.vehicle.mapper;
 
-import com.autoadda.apis.vehicle.clients.IdentityClient;
+import com.autoadda.apis.vehicle.clients.AuthClient;
 import com.autoadda.apis.vehicle.clients.PartClient;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.request.VehicleRegistrationRequest;
@@ -17,7 +17,7 @@ import java.util.Optional;
 public class VehicleMapper {
     private final PartClient partClient;
     private final MediaFileMapper mediaFileMapper;
-    private final IdentityClient identityClient;
+    private final AuthClient identityClient;
 
     public VehicleDetails toEntity(VehicleRegistrationRequest request) {
         VehicleDetails vehicleDetails = new VehicleDetails();
@@ -38,6 +38,7 @@ public class VehicleMapper {
         vehicleDetails.setEngineType(request.getEngineType() != null && !request.getEngineType().isBlank() ? request.getEngineType() : null);
         vehicleDetails.setInsuCompany(request.getInsuCompany());
         vehicleDetails.setMainImageId(request.getMainImageId());
+        vehicleDetails.setIsForSale(Boolean.FALSE);
         vehicleDetails.setVehicleType(request.getVehicleType());
         vehicleDetails.setEngineNumber(request.getEngineNumber());
         vehicleDetails.setBrandRequestReferenceId(request.getBrandRequestReferenceId() != null && !request.getBrandRequestReferenceId().isBlank() ? request.getBrandRequestReferenceId() : null);
@@ -103,6 +104,7 @@ public class VehicleMapper {
         response.setOdometer(vehicleDetails.getOdometer());
         response.setNickName(vehicleDetails.getNickName());
         response.setCompanyId(vehicleDetails.getCompanyId());
+        response.setIsForSale(vehicleDetails.getIsForSale());
         response.setNumOfPassenger(vehicleDetails.getNumOfPassenger());
         response.setBrandRequestReferenceId(vehicleDetails.getBrandRequestReferenceId());
     }

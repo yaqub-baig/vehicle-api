@@ -6,8 +6,6 @@ import com.autoadda.apis.vehicle.response.AccidentReportResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.stream.Collectors;
-
 @Component
 @RequiredArgsConstructor
 public class AccidentReportMapper {

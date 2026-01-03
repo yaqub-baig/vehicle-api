@@ -26,6 +26,9 @@ import java.util.List;
 @Slf4j
 public class AccidentReportServiceImpl implements AccidentReportService {
 
+    public static final String ERROR_OCCURRED_WHILE_RETRIEVING_ACCIDENT_REPORTS = "Error occurred while retrieving accident reports";
+    public static final String ACCIDENT_REPORT_NOT_FOUND_WITH_ID = "Accident report not found with ID: ";
+    public static final String ACCIDENT_REPORTS_RETRIEVED_SUCCESSFULLY = "Accident reports retrieved successfully";
     private final AccidentReportRepository accidentReportRepository;
     private final VehicleDetailsRepository vehicleDetailsRepository;
     private final MediaFileRepository mediaFileRepository;
@@ -113,7 +116,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
     public GenericResponse getAccidentReportById(Integer id) {
         try {
             AccidentReport accidentReport = accidentReportRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Accident report not found with ID: " + id));
+                    .orElseThrow(() -> new ResourceNotFoundException(ACCIDENT_REPORT_NOT_FOUND_WITH_ID + id));
 
             AccidentReportResponse response = accidentReportMapper.entityToResponse(accidentReport);
 
@@ -155,7 +158,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
             return GenericResponse.builder()
                     .code("200")
                     .status(SUCCESS)
-                    .message("Accident reports retrieved successfully")
+                    .message(ACCIDENT_REPORTS_RETRIEVED_SUCCESSFULLY)
                     .body(responseList)
                     .build();
 
@@ -164,7 +167,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
             return GenericResponse.builder()
                     .code("500")
                     .status(FAILED)
-                    .message("Error occurred while retrieving accident reports")
+                    .message(ERROR_OCCURRED_WHILE_RETRIEVING_ACCIDENT_REPORTS)
                     .body(Collections.emptyList())
                     .build();
         }
@@ -182,7 +185,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
             return GenericResponse.builder()
                     .code("200")
                     .status(SUCCESS)
-                    .message("Accident reports retrieved successfully")
+                    .message(ACCIDENT_REPORTS_RETRIEVED_SUCCESSFULLY)
                     .body(responseList)
                     .build();
 
@@ -191,7 +194,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
             return GenericResponse.builder()
                     .code("500")
                     .status(FAILED)
-                    .message("Error occurred while retrieving accident reports")
+                    .message(ERROR_OCCURRED_WHILE_RETRIEVING_ACCIDENT_REPORTS)
                     .body(Collections.emptyList())
                     .build();
         }
@@ -209,7 +212,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
             return GenericResponse.builder()
                     .code("200")
                     .status(SUCCESS)
-                    .message("Accident reports retrieved successfully")
+                    .message(ACCIDENT_REPORTS_RETRIEVED_SUCCESSFULLY)
                     .body(responseList)
                     .build();
 
@@ -218,7 +221,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
             return GenericResponse.builder()
                     .code("500")
                     .status(FAILED)
-                    .message("Error occurred while retrieving accident reports")
+                    .message(ERROR_OCCURRED_WHILE_RETRIEVING_ACCIDENT_REPORTS)
                     .body(Collections.emptyList())
                     .build();
         }
@@ -228,7 +231,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
     public GenericResponse updateAccidentReport(Integer id, AccidentReportRequest request) {
         try {
             AccidentReport accidentReport = accidentReportRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Accident report not found with ID: " + id));
+                    .orElseThrow(() -> new ResourceNotFoundException(ACCIDENT_REPORT_NOT_FOUND_WITH_ID + id));
 
             // Update vehicle if provided
             if (request.getVehicleId() != null) {
@@ -312,7 +315,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
     public GenericResponse deleteAccidentReport(Integer id) {
         try {
             AccidentReport accidentReport = accidentReportRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Accident report not found with ID: " + id));
+                    .orElseThrow(() -> new ResourceNotFoundException(ACCIDENT_REPORT_NOT_FOUND_WITH_ID + id));
 
             accidentReportRepository.delete(accidentReport);
 

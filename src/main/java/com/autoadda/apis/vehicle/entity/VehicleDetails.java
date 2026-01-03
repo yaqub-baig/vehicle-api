@@ -63,7 +63,6 @@ public class VehicleDetails {
     @Enumerated(EnumType.STRING)
     @Column(name = "vehicle_type_category")
     private VehicleTypeCategoryEnum vehicleTypeCategory;
-
     @Column(name = "code")
     private String code;
     @Column(name = "brand_request_reference_id")
@@ -91,6 +90,7 @@ public class VehicleDetails {
     @JoinColumn(name = "mulkia_image_id_front")
     private MediaFile mulkiaImageFront;
 
+    private Boolean isForSale;
 
     @ManyToOne(optional = true,cascade = CascadeType.REMOVE)
     @JoinColumn(name = "mulkia_image_id_back")
@@ -103,6 +103,8 @@ public class VehicleDetails {
     private Long mainImageId;
     private Long companyId;
     private Integer customerId;
+    @Column(name = "previous_owner_id")
+    private Integer previousOwnerId; // Stores previous owner after transfer
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

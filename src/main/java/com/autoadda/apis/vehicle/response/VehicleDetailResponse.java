@@ -44,5 +44,6 @@ public class VehicleDetailResponse {
 	private UserResponse owner;
     private Long companyId;
     private CompanyResponse companyResponse;
+	private Boolean isForSale;
 
 }

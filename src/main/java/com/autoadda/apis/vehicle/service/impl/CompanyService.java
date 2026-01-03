@@ -1,6 +1,6 @@
 package com.autoadda.apis.vehicle.service.impl;
 
-import com.autoadda.apis.vehicle.clients.IdentityClient;
+import com.autoadda.apis.vehicle.clients.AuthClient;
 import com.autoadda.apis.vehicle.dao.CompanyRepository;
 import com.autoadda.apis.vehicle.entity.Company;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
@@ -24,7 +24,7 @@ public class CompanyService {
     private static final String COMPANY_NOT_FOUND = "Company not found";
     private final CompanyRepository companyRepository;
     private final CompanyMapper companyMapper;
-    private final IdentityClient identityClient;
+    private final AuthClient identityClient;
     @Transactional
     public GenericResponse createCompany(CompanyRequest companyRequest) {
         validateTradeLicense ( companyRequest );

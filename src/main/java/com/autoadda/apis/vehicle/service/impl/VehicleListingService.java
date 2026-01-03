@@ -2,6 +2,7 @@ package com.autoadda.apis.vehicle.service.impl;
 
 import com.autoadda.apis.vehicle.dao.VehicleDetailsRepository;
 import com.autoadda.apis.vehicle.dao.VehicleListingRepository;
+import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.entity.VehicleListing;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.mapper.VehicleListingMapper;
@@ -31,8 +32,11 @@ public class VehicleListingService {
 
     public GenericResponse createVehicleListing(VehicleListingRequest vehicleListingRequest) {
         VehicleListing vehicleListing = vehicleListingMapper.requestToEntity ( vehicleListingRequest );
-        vehicleListing.setVehicle ( vehicleDetailsRepository.findById ( vehicleListingRequest.getVehicleId ( ) ).orElseThrow ( () -> new ResourceNotFoundException ( "invalid vehicle id" ) ) );
+        VehicleDetails vehicleDetails = vehicleDetailsRepository.findById(vehicleListingRequest.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("invalid vehicle id"));
+        vehicleDetails.setIsForSale(Boolean.TRUE);
+        vehicleListing.setVehicle (vehicleDetails);
         VehicleListing listedVehicle = vehicleListingRepository.save ( vehicleListing );
+        vehicleDetailsRepository.save(vehicleDetails);
         return GenericResponse.builder ( ).code ( "200" ).status (SUCCESS).message ( "Vehicle listed successfully" ).body ( vehicleListingMapper.entityToResponse ( listedVehicle ) ).build ( );
     }
     public GenericResponse getVehicleListings(VehicleSearchCriteria criteria) {
