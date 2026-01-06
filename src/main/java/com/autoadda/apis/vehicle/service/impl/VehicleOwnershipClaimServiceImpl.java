@@ -30,6 +30,7 @@ public class VehicleOwnershipClaimServiceImpl implements VehicleOwnershipClaimSe
     private final VehicleOwnershipClaimRepository claimRepository;
     private final VehicleDetailsRepository vehicleRepository;
     private final OwnershipClaimMapper claimMapper;
+    private final OwnershipClaimNotificationService notificationService;
 
     @Override
     @Transactional
@@ -82,6 +83,8 @@ public class VehicleOwnershipClaimServiceImpl implements VehicleOwnershipClaimSe
         VehicleOwnershipClaim savedClaim = claimRepository.save(claim);
 
         log.info("Ownership claim created successfully with ID: {}", savedClaim.getId());
+
+        notificationService.sendClaimCreatedNotifications(savedClaim, vehicle);
 
         return GenericResponse.builder()
             .status(SUCCESS)
@@ -149,16 +152,18 @@ public class VehicleOwnershipClaimServiceImpl implements VehicleOwnershipClaimSe
         claim.setResponseDate(LocalDateTime.now());
         claim.setResponseNotes(request.getNotes());
         claim.setUpdatedAt(LocalDateTime.now());
-        claimRepository.save(claim);
+        VehicleOwnershipClaim savedClaim = claimRepository.save(claim);
 
         log.info("Ownership claim approved. Vehicle {} transferred from {} to {}",
             vehicle.getId(), ownerId, claim.getRequesterId());
+
+        notificationService.sendClaimApprovedNotifications(savedClaim, vehicle);
 
         return GenericResponse.builder()
             .status(SUCCESS)
             .code("200")
             .message("Ownership claim approved. Vehicle ownership transferred successfully.")
-            .body(claimMapper.toResponse(claim))
+            .body(claimMapper.toResponse(savedClaim))
             .build();
     }
 
@@ -202,15 +207,18 @@ public class VehicleOwnershipClaimServiceImpl implements VehicleOwnershipClaimSe
         claim.setResponseDate(LocalDateTime.now());
         claim.setResponseNotes(request.getNotes());
         claim.setUpdatedAt(LocalDateTime.now());
-        claimRepository.save(claim);
+        VehicleOwnershipClaim savedClaim = claimRepository.save(claim);
 
         log.info("Ownership claim rejected by owner: {}", ownerId);
+
+        Optional<VehicleDetails> vehicleOpt = vehicleRepository.findById(claim.getVehicleId());
+        vehicleOpt.ifPresent(vehicle -> notificationService.sendClaimRejectedNotifications(savedClaim, vehicle));
 
         return GenericResponse.builder()
             .status(SUCCESS)
             .code("200")
             .message("Ownership claim rejected")
-            .body(claimMapper.toResponse(claim))
+            .body(claimMapper.toResponse(savedClaim))
             .build();
     }
 
@@ -251,7 +259,10 @@ public class VehicleOwnershipClaimServiceImpl implements VehicleOwnershipClaimSe
         claim.setStatus(ClaimStatusEnum.CANCELLED);
         claim.setResponseDate(LocalDateTime.now());
         claim.setUpdatedAt(LocalDateTime.now());
-        claimRepository.save(claim);
+        VehicleOwnershipClaim savedClaim = claimRepository.save(claim);
+
+        Optional<VehicleDetails> vehicleOpt = vehicleRepository.findById(claim.getVehicleId());
+        vehicleOpt.ifPresent(vehicle -> notificationService.sendClaimCancelledNotifications(savedClaim, vehicle));
 
         return GenericResponse.builder()
             .status(SUCCESS)

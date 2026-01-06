@@ -37,6 +37,14 @@ public class AccidentReportServiceImpl implements AccidentReportService {
     private static final String SUCCESS = "success";
     private static final String FAILED = "failed";
 
+    private void setStatusIfValid(AccidentReport accidentReport, String statusString, String defaultMessage) {
+        try {
+            accidentReport.setStatus(Status.valueOf(statusString.toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            log.warn(defaultMessage, statusString);
+        }
+    }
+
     @Override
     public GenericResponse createAccidentReport(AccidentReportRequest request) {
         try {
@@ -74,11 +82,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
 
             // Set status if provided, otherwise will default to SUBMITTED via @PrePersist
             if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
-                try {
-                    accidentReport.setStatus(Status.valueOf(request.getStatus().toUpperCase()));
-                } catch (IllegalArgumentException e) {
-                    log.warn("Invalid status provided: {}, using default SUBMITTED", request.getStatus());
-                }
+                setStatusIfValid(accidentReport, request.getStatus(), "Invalid status provided: {}, using default SUBMITTED");
             }
             // Save entity
             AccidentReport savedReport = accidentReportRepository.save(accidentReport);
@@ -272,11 +276,7 @@ public class AccidentReportServiceImpl implements AccidentReportService {
 
             // Update status if provided
             if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
-                try {
-                    accidentReport.setStatus(Status.valueOf(request.getStatus().toUpperCase()));
-                } catch (IllegalArgumentException e) {
-                    log.warn("Invalid status provided: {}, keeping existing status", request.getStatus());
-                }
+                setStatusIfValid(accidentReport, request.getStatus(), "Invalid status provided: {}, keeping existing status");
             }
 
             // Save updated entity
