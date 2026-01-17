@@ -21,18 +21,22 @@ public class VehicleSaleListingController {
     @GetMapping
     public GenericResponse getVehicleListings(
             @RequestParam(required = false) String location,
-            @RequestParam(required = false) Double price,
+            @RequestParam(required = false) Double fromPrice,
+            @RequestParam(required = false) Double toPrice,
             @RequestParam(required = false) String brand,
             @RequestParam(required = false) String model,
-            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer fromYear,
+            @RequestParam(required = false) Integer toYear,
             @RequestParam(required = false) String search) {
 
         VehicleSearchCriteria criteria = VehicleSearchCriteria.builder ( )
                 .location ( location )
-                .price ( price )
+                .fromPrice ( fromPrice )
+                .toPrice ( toPrice )
                 .brand ( brand )
                 .model ( model )
-                .year ( year )
+                .fromYear ( fromYear )
+                .toYear ( toYear )
                 .globalSearch ( search )
                 .build ( );
 
@@ -57,10 +61,12 @@ public class VehicleSaleListingController {
     @GetMapping("/paginated")
     public GenericResponse getVehicleListingsPaginated(
             @RequestParam(required = false) String location,
-            @RequestParam(required = false) Double price,
+            @RequestParam(required = false) Double fromPrice,
+            @RequestParam(required = false) Double toPrice,
             @RequestParam(required = false) String brand,
             @RequestParam(required = false) String model,
-            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer fromYear,
+            @RequestParam(required = false) Integer toYear,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
@@ -69,10 +75,12 @@ public class VehicleSaleListingController {
 
         VehicleSearchCriteria criteria = VehicleSearchCriteria.builder()
                 .location(location)
-                .price(price)
+                .fromPrice(fromPrice)
+                .toPrice(toPrice)
                 .brand(brand)
                 .model(model)
-                .year(year)
+                .fromYear(fromYear)
+                .toYear(toYear)
                 .globalSearch(search)
                 .page(page)
                 .size(size)

@@ -1,11 +1,16 @@
 package com.autoadda.apis.vehicle.request;
 
+import com.autoadda.apis.vehicle.exception.InvalidInputException;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Data
 @Builder
@@ -13,10 +18,12 @@ import java.util.Set;
 @AllArgsConstructor
 public class VehicleSearchCriteria {
     private String location;
-    private Double price;
+    private Double fromPrice;
+    private Double toPrice;
     private String brand;
     private String model;
-    private Integer year;
+    private Integer fromYear;
+    private Integer toYear;
     private String globalSearch;
 
     // Pagination fields
@@ -45,8 +52,35 @@ public class VehicleSearchCriteria {
         return location != null && !location.trim().isEmpty();
     }
 
+    /**
+     * Parses the location parameter into a list of cities.
+     * Supports both single city and comma-separated multiple cities.
+     *
+     * @return List of trimmed, lowercase city names
+     */
+    public List<String> getCitiesAsList() {
+        if (!hasLocation()) {
+            return Collections.emptyList();
+        }
+
+        // Split by comma, trim each value, convert to lowercase, remove empty strings
+        return Arrays.stream(location.split(","))
+                .map(String::trim)
+                .filter(city -> !city.isEmpty())
+                .map(String::toLowerCase)
+                .distinct()  // Remove duplicates
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Check if location filter contains multiple cities
+     */
+    public boolean hasMultipleCities() {
+        return getCitiesAsList().size() > 1;
+    }
+
     public boolean hasPrice() {
-        return price != null && price > 0;
+        return fromPrice != null && toPrice != null && fromPrice > 0 && toPrice > 0;
     }
 
     public boolean hasBrand() {
@@ -58,11 +92,61 @@ public class VehicleSearchCriteria {
     }
 
     public boolean hasYear() {
-        return year != null && year > 0;
+        return fromYear != null && toYear != null && fromYear > 0 && toYear > 0;
     }
 
     public boolean hasGlobalSearch() {
         return globalSearch != null && !globalSearch.trim().isEmpty();
+    }
+
+    // Range validation methods
+    public void validatePriceRange() {
+        boolean hasFromPrice = fromPrice != null;
+        boolean hasToPrice = toPrice != null;
+
+        if (hasFromPrice != hasToPrice) {
+            throw new InvalidInputException(
+                "Both fromPrice and toPrice must be provided together, or neither should be provided"
+            );
+        }
+
+        if (hasFromPrice && hasToPrice) {
+            if (fromPrice <= 0 || toPrice <= 0) {
+                throw new InvalidInputException("Price values must be positive numbers");
+            }
+            if (fromPrice > toPrice) {
+                throw new InvalidInputException(
+                    "fromPrice (" + fromPrice + ") cannot be greater than toPrice (" + toPrice + ")"
+                );
+            }
+        }
+    }
+
+    public void validateYearRange() {
+        boolean hasFromYear = fromYear != null;
+        boolean hasToYear = toYear != null;
+
+        if (hasFromYear != hasToYear) {
+            throw new InvalidInputException(
+                "Both fromYear and toYear must be provided together, or neither should be provided"
+            );
+        }
+
+        if (hasFromYear && hasToYear) {
+            if (fromYear <= 0 || toYear <= 0) {
+                throw new InvalidInputException("Year values must be positive numbers");
+            }
+            if (fromYear > toYear) {
+                throw new InvalidInputException(
+                    "fromYear (" + fromYear + ") cannot be greater than toYear (" + toYear + ")"
+                );
+            }
+        }
+    }
+
+    public void validateRanges() {
+        validatePriceRange();
+        validateYearRange();
     }
 
     // Pagination helper methods

@@ -5,7 +5,7 @@ import com.autoadda.apis.vehicle.util.PolicyTypeEnum;
 import com.autoadda.apis.vehicle.util.VehicleTypeCategoryEnum;
 import lombok.*;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;

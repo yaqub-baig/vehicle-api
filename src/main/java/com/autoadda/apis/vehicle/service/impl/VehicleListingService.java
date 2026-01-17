@@ -4,6 +4,7 @@ import com.autoadda.apis.vehicle.dao.VehicleDetailsRepository;
 import com.autoadda.apis.vehicle.dao.VehicleListingRepository;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.entity.VehicleListing;
+import com.autoadda.apis.vehicle.exception.InvalidInputException;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.mapper.VehicleListingMapper;
 import com.autoadda.apis.vehicle.request.VehicleListingRequest;
@@ -41,6 +42,9 @@ public class VehicleListingService {
     }
     public GenericResponse getVehicleListings(VehicleSearchCriteria criteria) {
         try {
+            // Validate range filters
+            criteria.validateRanges();
+
             List<VehicleListing> vehicles = findVehiclesByCriteria(criteria);
 
             if (vehicles.isEmpty()) {
@@ -63,6 +67,14 @@ public class VehicleListingService {
                     .message(SUCCESS)
                     .build();
 
+        } catch (InvalidInputException e) {
+            log.error("Invalid search criteria: {}", e.getMessage(), e);
+            return GenericResponse.builder()
+                    .body(null)
+                    .code("400")
+                    .status("failed")
+                    .message(e.getMessage())
+                    .build();
         } catch (Exception e) {
             log.error("Error fetching vehicle listings: {}", e.getMessage(), e);
             return GenericResponse.builder()
@@ -129,6 +141,9 @@ public class VehicleListingService {
             criteria.getSortByOrDefault();
             criteria.getSortDirectionOrDefault();
 
+            // Validate range filters
+            criteria.validateRanges();
+
             // Find vehicles with pagination
             Page<VehicleListing> page = findVehiclesByCriteriaWithPagination(criteria);
 
@@ -156,6 +171,14 @@ public class VehicleListingService {
                     .message(SUCCESS)
                     .build();
 
+        } catch (InvalidInputException e) {
+            log.error("Invalid search criteria: {}", e.getMessage(), e);
+            return GenericResponse.builder()
+                    .body(null)
+                    .code("400")
+                    .status("failed")
+                    .message(e.getMessage())
+                    .build();
         } catch (IllegalArgumentException e) {
             log.error("Invalid pagination parameters: {}", e.getMessage(), e);
             return GenericResponse.builder()

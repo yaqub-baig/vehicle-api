@@ -8,15 +8,15 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.persistence.TypedQuery;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Expression;
-import javax.persistence.criteria.Order;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,16 +44,25 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
         ) );
         // Add conditions based on provided criteria
         if ( criteria.hasLocation ( ) ) {
-            predicates.add ( cb.equal (
-                    cb.lower ( vehicle.get ( "city" ) ),
-                    criteria.getLocation ( ).toLowerCase ( ).trim ( )
-            ) );
+            List<String> cities = criteria.getCitiesAsList();
+
+            if (cities.size() == 1) {
+                // Single city - use equal for better performance
+                predicates.add ( cb.equal (
+                        cb.lower ( vehicle.get ( "city" ) ),
+                        cities.get(0)
+                ) );
+            } else {
+                // Multiple cities - use IN clause
+                predicates.add ( cb.lower ( vehicle.get ( "city" ) ).in ( cities ) );
+            }
         }
 
         if ( criteria.hasPrice ( ) ) {
-            predicates.add ( cb.lessThanOrEqualTo (
+            predicates.add ( cb.between (
                     vehicle.get ( "price" ),
-                    criteria.getPrice ( )
+                    criteria.getFromPrice ( ),
+                    criteria.getToPrice ( )
             ) );
         }
 
@@ -72,9 +81,15 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
         }
 
         if ( criteria.hasYear ( ) ) {
-            predicates.add ( cb.equal (
-                    vehicle.get ( VEHICLE ).get ( "year" ),
-                    criteria.getYear ( )
+            predicates.add ( cb.and (
+                    cb.greaterThanOrEqualTo (
+                            vehicle.get ( VEHICLE ).get ( "year" ).as ( Integer.class ),
+                            criteria.getFromYear ( )
+                    ),
+                    cb.lessThanOrEqualTo (
+                            vehicle.get ( VEHICLE ).get ( "year" ).as ( Integer.class ),
+                            criteria.getToYear ( )
+                    )
             ) );
         }
 
@@ -216,16 +231,25 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
 
         // Add conditions based on provided criteria
         if (criteria.hasLocation()) {
-            predicates.add(cb.equal(
-                    cb.lower(vehicle.get("city")),
-                    criteria.getLocation().toLowerCase().trim()
-            ));
+            List<String> cities = criteria.getCitiesAsList();
+
+            if (cities.size() == 1) {
+                // Single city - use equal for better performance
+                predicates.add(cb.equal(
+                        cb.lower(vehicle.get("city")),
+                        cities.get(0)
+                ));
+            } else {
+                // Multiple cities - use IN clause
+                predicates.add(cb.lower(vehicle.get("city")).in(cities));
+            }
         }
 
         if (criteria.hasPrice()) {
-            predicates.add(cb.lessThanOrEqualTo(
+            predicates.add(cb.between(
                     vehicle.get("price"),
-                    criteria.getPrice()
+                    criteria.getFromPrice(),
+                    criteria.getToPrice()
             ));
         }
 
@@ -244,9 +268,15 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
         }
 
         if (criteria.hasYear()) {
-            predicates.add(cb.equal(
-                    vehicle.get(VEHICLE).get("year"),
-                    criteria.getYear()
+            predicates.add(cb.and(
+                    cb.greaterThanOrEqualTo(
+                            vehicle.get(VEHICLE).get("year").as(Integer.class),
+                            criteria.getFromYear()
+                    ),
+                    cb.lessThanOrEqualTo(
+                            vehicle.get(VEHICLE).get("year").as(Integer.class),
+                            criteria.getToYear()
+                    )
             ));
         }
 

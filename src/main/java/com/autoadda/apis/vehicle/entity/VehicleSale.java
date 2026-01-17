@@ -4,7 +4,7 @@ package com.autoadda.apis.vehicle.entity;
 import com.autoadda.apis.vehicle.util.Status;
 import lombok.*;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDate;
 
 @Entity

@@ -1,6 +1,6 @@
 package com.autoadda.apis.vehicle.entity;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;

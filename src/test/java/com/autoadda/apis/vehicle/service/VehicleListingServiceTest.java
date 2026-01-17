@@ -18,6 +18,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -68,7 +70,8 @@ class VehicleListingServiceTest {
 
         searchCriteria = new VehicleSearchCriteria();
         searchCriteria.setLocation ("Bhopal");
-        searchCriteria.setPrice(10000.0);
+        searchCriteria.setFromPrice(5000.0);
+        searchCriteria.setToPrice(15000.0);
 
         vehicleDetails = new VehicleDetails();
         vehicleDetails.setId(vehicleId);
@@ -384,5 +387,374 @@ class VehicleListingServiceTest {
         // Verify that the vehicle was set correctly in the entity
         assertEquals(vehicleDetails, newVehicleListing.getVehicle());
         verify(vehicleDetailsRepository, times(1)).findById(vehicleId);
+    }
+
+    // Range filter validation tests
+
+    @Test
+    void getVehicleListings_WithValidPriceRange_ShouldReturnFilteredListings() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setFromPrice(5000.0);
+        criteria.setToPrice(15000.0);
+
+        List<VehicleListing> vehicleListings = Arrays.asList(vehicleListing);
+        when(vehicleListingRepository.findByCriteria(criteria)).thenReturn(vehicleListings);
+        when(vehicleListingMapper.entityToResponse(any(VehicleListing.class))).thenReturn(vehicleListingResponse);
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("200", response.getCode());
+        assertEquals("success", response.getMessage());
+
+        verify(vehicleListingRepository, times(1)).findByCriteria(criteria);
+    }
+
+    @Test
+    void getVehicleListings_WithValidYearRange_ShouldReturnFilteredListings() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setFromYear(2015);
+        criteria.setToYear(2020);
+
+        List<VehicleListing> vehicleListings = Arrays.asList(vehicleListing);
+        when(vehicleListingRepository.findByCriteria(criteria)).thenReturn(vehicleListings);
+        when(vehicleListingMapper.entityToResponse(any(VehicleListing.class))).thenReturn(vehicleListingResponse);
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("200", response.getCode());
+        assertEquals("success", response.getMessage());
+
+        verify(vehicleListingRepository, times(1)).findByCriteria(criteria);
+    }
+
+    @Test
+    void getVehicleListings_WithOnlyFromPrice_ShouldReturnValidationError() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setFromPrice(5000.0);
+        // toPrice is not set
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("400", response.getCode());
+        assertEquals("failed", response.getStatus());
+        assertTrue(response.getMessage().contains("Both fromPrice and toPrice must be provided together"));
+
+        verify(vehicleListingRepository, never()).findByCriteria(any());
+    }
+
+    @Test
+    void getVehicleListings_WithOnlyToPrice_ShouldReturnValidationError() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setToPrice(15000.0);
+        // fromPrice is not set
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("400", response.getCode());
+        assertEquals("failed", response.getStatus());
+        assertTrue(response.getMessage().contains("Both fromPrice and toPrice must be provided together"));
+
+        verify(vehicleListingRepository, never()).findByCriteria(any());
+    }
+
+    @Test
+    void getVehicleListings_WithInvalidPriceRange_ShouldReturnValidationError() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setFromPrice(15000.0);
+        criteria.setToPrice(5000.0); // fromPrice > toPrice
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("400", response.getCode());
+        assertEquals("failed", response.getStatus());
+        assertTrue(response.getMessage().contains("fromPrice") &&
+                   response.getMessage().contains("cannot be greater than toPrice"));
+
+        verify(vehicleListingRepository, never()).findByCriteria(any());
+    }
+
+    @Test
+    void getVehicleListings_WithNegativePriceValues_ShouldReturnValidationError() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setFromPrice(-5000.0);
+        criteria.setToPrice(15000.0);
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("400", response.getCode());
+        assertEquals("failed", response.getStatus());
+        assertTrue(response.getMessage().contains("Price values must be positive"));
+
+        verify(vehicleListingRepository, never()).findByCriteria(any());
+    }
+
+    @Test
+    void getVehicleListings_WithOnlyFromYear_ShouldReturnValidationError() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setFromYear(2015);
+        // toYear is not set
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("400", response.getCode());
+        assertEquals("failed", response.getStatus());
+        assertTrue(response.getMessage().contains("Both fromYear and toYear must be provided together"));
+
+        verify(vehicleListingRepository, never()).findByCriteria(any());
+    }
+
+    @Test
+    void getVehicleListings_WithInvalidYearRange_ShouldReturnValidationError() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setFromYear(2020);
+        criteria.setToYear(2015); // fromYear > toYear
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("400", response.getCode());
+        assertEquals("failed", response.getStatus());
+        assertTrue(response.getMessage().contains("fromYear") &&
+                   response.getMessage().contains("cannot be greater than toYear"));
+
+        verify(vehicleListingRepository, never()).findByCriteria(any());
+    }
+
+    @Test
+    void getVehicleListings_WithBothPriceAndYearRanges_ShouldReturnFilteredListings() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setFromPrice(5000.0);
+        criteria.setToPrice(15000.0);
+        criteria.setFromYear(2015);
+        criteria.setToYear(2020);
+
+        List<VehicleListing> vehicleListings = Arrays.asList(vehicleListing);
+        when(vehicleListingRepository.findByCriteria(criteria)).thenReturn(vehicleListings);
+        when(vehicleListingMapper.entityToResponse(any(VehicleListing.class))).thenReturn(vehicleListingResponse);
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("200", response.getCode());
+        assertEquals("success", response.getMessage());
+
+        verify(vehicleListingRepository, times(1)).findByCriteria(criteria);
+    }
+
+    @Test
+    void getVehicleListings_WithBoundaryPriceValues_ShouldReturnFilteredListings() {
+        // Arrange - Test equal from and to values (valid edge case)
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setFromPrice(10000.0);
+        criteria.setToPrice(10000.0); // Same value, should be valid
+
+        List<VehicleListing> vehicleListings = Arrays.asList(vehicleListing);
+        when(vehicleListingRepository.findByCriteria(criteria)).thenReturn(vehicleListings);
+        when(vehicleListingMapper.entityToResponse(any(VehicleListing.class))).thenReturn(vehicleListingResponse);
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("200", response.getCode());
+        assertEquals("success", response.getMessage());
+
+        verify(vehicleListingRepository, times(1)).findByCriteria(criteria);
+    }
+
+    // Multi-city location search tests
+
+    @Test
+    void getVehicleListings_WithSingleCity_ShouldReturnFilteredListings() {
+        // Arrange - Test backward compatibility
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setLocation("Bhopal");
+
+        List<VehicleListing> vehicleListings = Arrays.asList(vehicleListing);
+        when(vehicleListingRepository.findByCriteria(criteria)).thenReturn(vehicleListings);
+        when(vehicleListingMapper.entityToResponse(any(VehicleListing.class))).thenReturn(vehicleListingResponse);
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("200", response.getCode());
+        assertEquals("success", response.getMessage());
+        assertEquals(1, criteria.getCitiesAsList().size());
+        assertEquals("bhopal", criteria.getCitiesAsList().get(0));
+
+        verify(vehicleListingRepository, times(1)).findByCriteria(criteria);
+    }
+
+    @Test
+    void getVehicleListings_WithMultipleCities_ShouldReturnFilteredListings() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setLocation("Bhopal,Indore,Delhi");
+
+        List<VehicleListing> vehicleListings = Arrays.asList(vehicleListing);
+        when(vehicleListingRepository.findByCriteria(criteria)).thenReturn(vehicleListings);
+        when(vehicleListingMapper.entityToResponse(any(VehicleListing.class))).thenReturn(vehicleListingResponse);
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("200", response.getCode());
+        assertEquals("success", response.getMessage());
+
+        List<String> cities = criteria.getCitiesAsList();
+        assertEquals(3, cities.size());
+        assertTrue(cities.contains("bhopal"));
+        assertTrue(cities.contains("indore"));
+        assertTrue(cities.contains("delhi"));
+        assertTrue(criteria.hasMultipleCities());
+
+        verify(vehicleListingRepository, times(1)).findByCriteria(criteria);
+    }
+
+    @Test
+    void getVehicleListings_WithMultipleCitiesAndSpaces_ShouldNormalizeCities() {
+        // Arrange - Test trimming and normalization
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setLocation("  Bhopal  , Indore , Delhi  ");
+
+        List<VehicleListing> vehicleListings = Arrays.asList(vehicleListing);
+        when(vehicleListingRepository.findByCriteria(criteria)).thenReturn(vehicleListings);
+        when(vehicleListingMapper.entityToResponse(any(VehicleListing.class))).thenReturn(vehicleListingResponse);
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListings(criteria);
+
+        // Assert
+        assertNotNull(response);
+
+        List<String> cities = criteria.getCitiesAsList();
+        assertEquals(3, cities.size());
+        assertEquals("bhopal", cities.get(0));
+        assertEquals("indore", cities.get(1));
+        assertEquals("delhi", cities.get(2));
+    }
+
+    @Test
+    void getVehicleListings_WithDuplicateCities_ShouldRemoveDuplicates() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setLocation("Bhopal,Indore,bhopal,BHOPAL");
+
+        // Act
+        List<String> cities = criteria.getCitiesAsList();
+
+        // Assert
+        assertEquals(2, cities.size());
+        assertTrue(cities.contains("bhopal"));
+        assertTrue(cities.contains("indore"));
+    }
+
+    @Test
+    void getVehicleListings_WithEmptyCitiesInList_ShouldFilterThem() {
+        // Arrange - Test handling of empty values
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setLocation("Bhopal,,Indore,  ,Delhi");
+
+        // Act
+        List<String> cities = criteria.getCitiesAsList();
+
+        // Assert
+        assertEquals(3, cities.size());
+        assertTrue(cities.contains("bhopal"));
+        assertTrue(cities.contains("indore"));
+        assertTrue(cities.contains("delhi"));
+    }
+
+    @Test
+    void getVehicleListings_WithMultipleCitiesPaginated_ShouldReturnPagedResults() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setLocation("Bhopal,Indore,Delhi");
+        criteria.setPage(0);
+        criteria.setSize(10);
+
+        Page<VehicleListing> page = new PageImpl<>(Arrays.asList(vehicleListing));
+        when(vehicleListingRepository.findByCriteriaWithPagination(criteria)).thenReturn(page);
+        when(vehicleListingMapper.entityToResponse(any(VehicleListing.class))).thenReturn(vehicleListingResponse);
+
+        // Act
+        GenericResponse response = vehicleListingService.getVehicleListingsWithPagination(criteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("200", response.getCode());
+        assertEquals("success", response.getMessage());
+
+        assertEquals(3, criteria.getCitiesAsList().size());
+
+        verify(vehicleListingRepository, times(1)).findByCriteriaWithPagination(criteria);
+    }
+
+    @Test
+    void getCitiesAsList_WithNullLocation_ShouldReturnEmptyList() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setLocation(null);
+
+        // Act
+        List<String> cities = criteria.getCitiesAsList();
+
+        // Assert
+        assertNotNull(cities);
+        assertTrue(cities.isEmpty());
+        assertFalse(criteria.hasMultipleCities());
+    }
+
+    @Test
+    void getCitiesAsList_WithEmptyLocation_ShouldReturnEmptyList() {
+        // Arrange
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setLocation("   ");
+
+        // Act
+        List<String> cities = criteria.getCitiesAsList();
+
+        // Assert
+        assertNotNull(cities);
+        assertTrue(cities.isEmpty());
     }
 }
