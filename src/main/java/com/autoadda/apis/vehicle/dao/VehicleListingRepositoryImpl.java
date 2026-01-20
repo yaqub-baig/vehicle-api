@@ -178,7 +178,7 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
         List<VehicleListing> results = typedQuery.getResultList();
 
         // Execute count query
-        long total = executeCountQuery(cb, predicates);
+        long total = executeCountQueryWithCriteria(cb, criteria);
 
         // Return PageImpl
         return new PageImpl<>(results, PageRequest.of(page, size), total);
@@ -215,7 +215,7 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
         List<VehicleListing> results = typedQuery.getResultList();
 
         // Execute count query
-        long total = executeCountQuery(cb, predicates);
+        long total = executeCountQueryWithSearch(cb, searchQuery);
 
         // Return PageImpl
         return new PageImpl<>(results, PageRequest.of(page, size), total);
@@ -331,9 +331,23 @@ public class VehicleListingRepositoryImpl implements VehicleListingCustomReposit
         }
     }
 
-    private long executeCountQuery(CriteriaBuilder cb, List<Predicate> predicates) {
+    private long executeCountQueryWithCriteria(CriteriaBuilder cb, VehicleSearchCriteria criteria) {
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<VehicleListing> countRoot = countQuery.from(VehicleListing.class);
+
+        List<Predicate> predicates = buildPredicates(cb, countRoot, criteria);
+
+        countQuery.select(cb.count(countRoot));
+        countQuery.where(cb.and(predicates.toArray(new Predicate[0])));
+
+        return entityManager.createQuery(countQuery).getSingleResult();
+    }
+
+    private long executeCountQueryWithSearch(CriteriaBuilder cb, String searchQuery) {
+        CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
+        Root<VehicleListing> countRoot = countQuery.from(VehicleListing.class);
+
+        List<Predicate> predicates = buildAdvancedSearchPredicates(cb, countRoot, searchQuery);
 
         countQuery.select(cb.count(countRoot));
         countQuery.where(cb.and(predicates.toArray(new Predicate[0])));
