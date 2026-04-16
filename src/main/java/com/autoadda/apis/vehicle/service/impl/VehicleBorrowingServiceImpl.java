@@ -599,13 +599,13 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
         }
 
         // 3. Verify borrower is not the owner
-        if (request.getBorrowerId().equals(ownerId)) {
-            return GenericResponse.builder()
-                    .status(ERROR)
-                    .code("400")
-                    .message("Cannot assign vehicle to yourself")
-                    .build();
-        }
+//        if (request.getBorrowerId().equals(ownerId)) {
+//            return GenericResponse.builder()
+//                    .status(ERROR)
+//                    .code("400")
+//                    .message("Cannot assign vehicle to yourself")
+//                    .build();
+//        }
 
         // 4. Check vehicle is not already borrowed
         if (borrowingRepository.hasActiveBorrowing(request.getVehicleId())) {
