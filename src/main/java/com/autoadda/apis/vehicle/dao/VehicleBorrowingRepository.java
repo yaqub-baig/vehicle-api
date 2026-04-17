@@ -29,6 +29,8 @@ public interface VehicleBorrowingRepository extends JpaRepository<VehicleBorrowi
 
     List<VehicleBorrowing> findByStatusAndIsDeletedFalse(BorrowingStatus status);
 
+    List<VehicleBorrowing> findByVehicleIdInAndIsDeletedFalseOrderByCreatedAtDesc(List<Integer> vehicleIds);
+
     @Query("SELECT vb FROM VehicleBorrowing vb WHERE vb.ownerId = :ownerId " +
            "AND vb.status = 'PENDING' AND vb.isDeleted = false ORDER BY vb.createdAt DESC")
     List<VehicleBorrowing> findPendingBorrowingsForOwner(@Param("ownerId") Integer ownerId);

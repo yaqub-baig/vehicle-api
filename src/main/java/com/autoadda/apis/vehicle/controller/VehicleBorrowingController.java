@@ -196,6 +196,15 @@ public class VehicleBorrowingController {
     }
 
     /**
+     * Get borrowings for all vehicles of a company
+     * GET /vehicle-borrowings/company/{companyId}
+     */
+    @GetMapping("/company/{companyId}")
+    public GenericResponse getBorrowingsByCompany(@PathVariable Long companyId) {
+        return borrowingService.getBorrowingsByCompany(companyId);
+    }
+
+    /**
      * Get active borrowing for a vehicle
      * GET /vehicle-borrowings/vehicle/{vehicleId}/active
      */

@@ -41,4 +41,6 @@ public interface VehicleBorrowingService {
     GenericResponse getActiveBorrowingForVehicle(Integer vehicleId);
 
     boolean isVehicleAvailableForBorrowing(Integer vehicleId);
+
+    GenericResponse getBorrowingsByCompany(Long companyId);
 }

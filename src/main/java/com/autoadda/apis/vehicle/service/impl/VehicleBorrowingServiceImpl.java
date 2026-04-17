@@ -28,7 +28,9 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collections;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -718,6 +720,35 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
             }
 
 
+    }
+
+    @Override
+    public GenericResponse getBorrowingsByCompany(Long companyId) {
+        log.info("Fetching borrowings for company: {}", companyId);
+
+        List<VehicleDetails> companyVehicles = vehicleRepository.findByCompanyId(companyId);
+        if (companyVehicles.isEmpty()) {
+            return GenericResponse.builder()
+                    .status(SUCCESS)
+                    .code("200")
+                    .message(BORROWINGS_RETRIEVED_SUCCESSFULLY)
+                    .body(Collections.emptyList())
+                    .build();
+        }
+
+        List<Integer> vehicleIds = companyVehicles.stream()
+                .map(VehicleDetails::getId)
+                .toList();
+
+        List<VehicleBorrowing> borrowings = borrowingRepository
+                .findByVehicleIdInAndIsDeletedFalseOrderByCreatedAtDesc(vehicleIds);
+
+        return GenericResponse.builder()
+                .status(SUCCESS)
+                .code("200")
+                .message(BORROWINGS_RETRIEVED_SUCCESSFULLY)
+                .body(mapper.toResponseList(borrowings))
+                .build();
     }
 
     private boolean isVehicleNotInGarage(Integer vehicleId) {
