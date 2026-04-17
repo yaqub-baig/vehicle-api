@@ -17,12 +17,34 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MediaFileController {
     private final MediaFileService mediaFileService;
+    private static final long MAX_VIDEO_SIZE = 30L * 1024 * 1024;
+    private static final long MAX_OTHER_SIZE = 10L * 1024 * 1024;
+
     @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
     public List<MediaFile> upload(@RequestPart("files") List<MultipartFile> files) throws IOException {
-        if ( files.stream ( ).anyMatch ( f -> f.getSize ( ) > 10 * 1024 * 1024 ) ) {
-            throw new IllegalArgumentException ( "File size must be less than 10MB" );
+        for (MultipartFile file : files) {
+            boolean isVideo = isVideoFile(file);
+            long maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_OTHER_SIZE;
+            if (file.getSize() > maxSize) {
+                throw new IllegalArgumentException(
+                        "File size must be less than " + (isVideo ? "30MB" : "10MB") + ": " + file.getOriginalFilename());
+            }
         }
         return mediaFileService.upload ( files );
+    }
+
+    private boolean isVideoFile(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType != null && contentType.startsWith("video/")) {
+            return true;
+        }
+        String name = file.getOriginalFilename();
+        if (name != null) {
+            String lower = name.toLowerCase();
+            return lower.endsWith(".mp4") || lower.endsWith(".avi") || lower.endsWith(".mov")
+                    || lower.endsWith(".mkv") || lower.endsWith(".webm");
+        }
+        return false;
     }
 
     @DeleteMapping("/{id}")

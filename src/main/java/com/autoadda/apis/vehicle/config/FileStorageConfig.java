@@ -28,6 +28,7 @@ public class FileStorageConfig implements WebMvcConfigurer {
             Files.createDirectories(uploadPath.resolve("photos"));
             Files.createDirectories(uploadPath.resolve("docs"));
             Files.createDirectories(uploadPath.resolve("pdfs"));
+            Files.createDirectories(uploadPath.resolve("videos"));
             log.info("Created directories at: " + uploadPath.toAbsolutePath());
         } catch (IOException e) {
             log.error("Could not initialize storage directories", e);

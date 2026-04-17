@@ -92,6 +92,8 @@ public class MediaFileServiceImpl implements MediaFileService {
         if ( contentType != null ) {
             if ( contentType.startsWith ( "image/" ) ) {
                 return "photos";
+            } else if ( contentType.startsWith ( "video/" ) ) {
+                return "videos";
             } else if ( contentType.equals ( "application/pdf" ) ) {
                 return "pdfs";
             } else if ( contentType.equals ( "application/msword" ) ||
@@ -104,6 +106,9 @@ public class MediaFileServiceImpl implements MediaFileService {
         if ( lowerName.endsWith ( ".jpg" ) || lowerName.endsWith ( ".jpeg" ) || lowerName.endsWith ( ".png" ) || lowerName.endsWith ( ".gif" ) ||
                 lowerName.endsWith(".webp") ) {
             return "photos";
+        } else if ( lowerName.endsWith ( ".mp4" ) || lowerName.endsWith ( ".avi" ) || lowerName.endsWith ( ".mov" ) ||
+                lowerName.endsWith ( ".mkv" ) || lowerName.endsWith ( ".webm" ) ) {
+            return "videos";
         } else if ( lowerName.endsWith ( ".pdf" ) ) {
             return "pdfs";
         } else if ( lowerName.endsWith ( ".doc" ) || lowerName.endsWith ( ".docx" ) ) {
