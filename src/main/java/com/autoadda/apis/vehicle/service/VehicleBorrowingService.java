@@ -2,7 +2,9 @@ package com.autoadda.apis.vehicle.service;
 
 import com.autoadda.apis.vehicle.request.BorrowingRejectionRequest;
 import com.autoadda.apis.vehicle.request.BorrowingReturnRequest;
+import com.autoadda.apis.vehicle.request.BorrowingTransferRequest;
 import com.autoadda.apis.vehicle.request.OwnerInitiatedBorrowingRequest;
+import com.autoadda.apis.vehicle.request.TransferRejectionRequest;
 import com.autoadda.apis.vehicle.request.VehicleBorrowingRequest;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 
@@ -43,4 +45,15 @@ public interface VehicleBorrowingService {
     boolean isVehicleAvailableForBorrowing(Integer vehicleId);
 
     GenericResponse getBorrowingsByCompany(Long companyId);
+
+    GenericResponse initiateTransfer(Long borrowingId, Integer fromBorrowerId, BorrowingTransferRequest request);
+
+    GenericResponse acceptTransfer(Long borrowingId, Long transferId, Integer toBorrowerId);
+
+    GenericResponse rejectTransfer(Long borrowingId, Long transferId, Integer toBorrowerId,
+                                   TransferRejectionRequest request);
+
+    GenericResponse cancelTransfer(Long borrowingId, Long transferId, Integer fromBorrowerId);
+
+    GenericResponse getTransfersForBorrowing(Long borrowingId);
 }

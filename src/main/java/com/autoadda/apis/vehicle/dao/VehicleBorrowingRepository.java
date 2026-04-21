@@ -14,7 +14,7 @@ import java.util.Optional;
 public interface VehicleBorrowingRepository extends JpaRepository<VehicleBorrowing, Long> {
 
     @Query("SELECT COUNT(vb) > 0 FROM VehicleBorrowing vb WHERE vb.vehicleId = :vehicleId " +
-           "AND vb.status IN ('PENDING', 'APPROVED', 'ACTIVE', 'RETURN_INITIATED') " +
+           "AND vb.status IN ('PENDING', 'APPROVED', 'ACTIVE', 'TRANSFER_REQUESTED', 'RETURN_INITIATED') " +
            "AND vb.isDeleted = false")
     boolean hasActiveBorrowing(@Param("vehicleId") Integer vehicleId);
 

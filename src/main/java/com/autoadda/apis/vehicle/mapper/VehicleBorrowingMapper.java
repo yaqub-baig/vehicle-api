@@ -1,12 +1,16 @@
 package com.autoadda.apis.vehicle.mapper;
 
 import com.autoadda.apis.vehicle.clients.AuthClient;
+import com.autoadda.apis.vehicle.dao.BorrowingTransferRepository;
 import com.autoadda.apis.vehicle.dao.VehicleDetailsRepository;
+import com.autoadda.apis.vehicle.entity.BorrowingTransfer;
 import com.autoadda.apis.vehicle.entity.MediaFile;
 import com.autoadda.apis.vehicle.entity.VehicleBorrowing;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.enums.BorrowingStatus;
+import com.autoadda.apis.vehicle.enums.TransferStatus;
 import com.autoadda.apis.vehicle.request.VehicleBorrowingRequest;
+import com.autoadda.apis.vehicle.response.BorrowingTransferResponse;
 import com.autoadda.apis.vehicle.response.UserResponse;
 import com.autoadda.apis.vehicle.response.VehicleBorrowingResponse;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +28,7 @@ public class VehicleBorrowingMapper {
     private final AuthClient authClient;
     private final VehicleDetailsRepository vehicleRepository;
     private final MediaFileMapper mediaFileMapper;
+    private final BorrowingTransferRepository transferRepository;
 
     public VehicleBorrowingResponse toResponse(VehicleBorrowing entity) {
         if (entity == null) {
@@ -33,6 +38,7 @@ public class VehicleBorrowingMapper {
         VehicleBorrowingResponse.VehicleBorrowingResponseBuilder builder = VehicleBorrowingResponse.builder()
                 .id(entity.getId())
                 .borrowerId(entity.getBorrowerId())
+                .originalBorrowerId(entity.getOriginalBorrowerId())
                 .vehicleId(entity.getVehicleId())
                 .ownerId(entity.getOwnerId())
                 .borrowingTime(entity.getBorrowingTime())
@@ -54,6 +60,35 @@ public class VehicleBorrowingMapper {
             }
         } catch (Exception e) {
             log.warn("Failed to fetch borrower details for ID {}: {}", entity.getBorrowerId(), e.getMessage());
+        }
+
+        if (entity.getOriginalBorrowerId() != null
+                && !entity.getOriginalBorrowerId().equals(entity.getBorrowerId())) {
+            try {
+                UserResponse originalBorrower = authClient.getUser(entity.getOriginalBorrowerId());
+                if (originalBorrower != null) {
+                    builder.originalBorrowerName(originalBorrower.getName());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch original borrower details for ID {}: {}",
+                        entity.getOriginalBorrowerId(), e.getMessage());
+            }
+        }
+
+        if (entity.getId() != null) {
+            try {
+                List<BorrowingTransfer> transfers = transferRepository
+                        .findByBorrowingIdAndIsDeletedFalseOrderByCreatedAtAsc(entity.getId());
+                if (!transfers.isEmpty()) {
+                    builder.transferHistory(transfers.stream().map(this::toTransferResponse).toList());
+                    transfers.stream()
+                            .filter(t -> t.getStatus() == TransferStatus.PENDING)
+                            .findFirst()
+                            .ifPresent(t -> builder.activeTransfer(toTransferResponse(t)));
+                }
+            } catch (Exception e) {
+                log.warn("Failed to load transfer history for borrowing {}: {}", entity.getId(), e.getMessage());
+            }
         }
 
         try {
@@ -103,6 +138,7 @@ public class VehicleBorrowingMapper {
                                       Integer ownerId, MediaFile borrowingImage) {
         return VehicleBorrowing.builder()
                 .borrowerId(borrowerId)
+                .originalBorrowerId(borrowerId)
                 .vehicleId(request.getVehicleId())
                 .ownerId(ownerId)
                 .expectedReturnTime(request.getExpectedReturnTime())
@@ -113,5 +149,50 @@ public class VehicleBorrowingMapper {
                 .returnConfirmedByOwner(false)
                 .isDeleted(false)
                 .build();
+    }
+
+    public BorrowingTransferResponse toTransferResponse(BorrowingTransfer entity) {
+        if (entity == null) {
+            return null;
+        }
+
+        BorrowingTransferResponse.BorrowingTransferResponseBuilder builder = BorrowingTransferResponse.builder()
+                .id(entity.getId())
+                .borrowingId(entity.getBorrowingId())
+                .fromBorrowerId(entity.getFromBorrowerId())
+                .toBorrowerId(entity.getToBorrowerId())
+                .status(entity.getStatus())
+                .reason(entity.getReason())
+                .notes(entity.getNotes())
+                .requestedAt(entity.getRequestedAt())
+                .resolvedAt(entity.getResolvedAt())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt());
+
+        try {
+            UserResponse from = authClient.getUser(entity.getFromBorrowerId());
+            if (from != null) {
+                builder.fromBorrowerName(from.getName());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch from-borrower {} for transfer {}: {}",
+                    entity.getFromBorrowerId(), entity.getId(), e.getMessage());
+        }
+
+        try {
+            UserResponse to = authClient.getUser(entity.getToBorrowerId());
+            if (to != null) {
+                builder.toBorrowerName(to.getName());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch to-borrower {} for transfer {}: {}",
+                    entity.getToBorrowerId(), entity.getId(), e.getMessage());
+        }
+
+        if (entity.getTransferImage() != null) {
+            builder.transferImage(mediaFileMapper.toResponse(entity.getTransferImage()));
+        }
+
+        return builder.build();
     }
 }

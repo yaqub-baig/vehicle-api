@@ -1,18 +1,23 @@
 package com.autoadda.apis.vehicle.service.impl;
 
 import com.autoadda.apis.vehicle.clients.GarageClient;
+import com.autoadda.apis.vehicle.dao.BorrowingTransferRepository;
 import com.autoadda.apis.vehicle.dao.MediaFileRepository;
 import com.autoadda.apis.vehicle.dao.VehicleBorrowingRepository;
 import com.autoadda.apis.vehicle.dao.VehicleDetailsRepository;
+import com.autoadda.apis.vehicle.entity.BorrowingTransfer;
 import com.autoadda.apis.vehicle.entity.MediaFile;
 import com.autoadda.apis.vehicle.entity.VehicleBorrowing;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.enums.BorrowingStatus;
+import com.autoadda.apis.vehicle.enums.TransferStatus;
 import com.autoadda.apis.vehicle.mapper.VehicleBorrowingMapper;
 import com.autoadda.apis.vehicle.clients.AuthClient;
 import com.autoadda.apis.vehicle.request.BorrowingRejectionRequest;
 import com.autoadda.apis.vehicle.request.BorrowingReturnRequest;
+import com.autoadda.apis.vehicle.request.BorrowingTransferRequest;
 import com.autoadda.apis.vehicle.request.OwnerInitiatedBorrowingRequest;
+import com.autoadda.apis.vehicle.request.TransferRejectionRequest;
 import com.autoadda.apis.vehicle.request.VehicleBorrowingRequest;
 import com.autoadda.apis.vehicle.response.UserResponse;
 import com.autoadda.apis.vehicle.response.GenericResponse;
@@ -46,6 +51,7 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
     public static final String BORROWINGS_RETRIEVED_SUCCESSFULLY = "Borrowings retrieved successfully";
 
     private final VehicleBorrowingRepository borrowingRepository;
+    private final BorrowingTransferRepository transferRepository;
     private final VehicleDetailsRepository vehicleRepository;
     private final MediaFileRepository mediaFileRepository;
     private final GarageClient garageClient;
@@ -543,6 +549,7 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                 BorrowingStatus.PENDING,
                 BorrowingStatus.APPROVED,
                 BorrowingStatus.ACTIVE,
+                BorrowingStatus.TRANSFER_REQUESTED,
                 BorrowingStatus.RETURN_INITIATED
         );
 
@@ -748,6 +755,268 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                 .code("200")
                 .message(BORROWINGS_RETRIEVED_SUCCESSFULLY)
                 .body(mapper.toResponseList(borrowings))
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse initiateTransfer(Long borrowingId, Integer fromBorrowerId,
+                                            BorrowingTransferRequest request) {
+        log.info("Initiating transfer on borrowing {} from {} to {}",
+                borrowingId, fromBorrowerId, request != null ? request.getToBorrowerId() : null);
+
+        if (request == null || request.getToBorrowerId() == null) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("400").message("Recipient borrower ID is required").build();
+        }
+
+        Optional<VehicleBorrowing> borrowingOpt = borrowingRepository.findById(borrowingId);
+        if (borrowingOpt.isEmpty()) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("404").message(BORROWING_NOT_FOUND).build();
+        }
+
+        VehicleBorrowing borrowing = borrowingOpt.get();
+
+        if (!borrowing.getBorrowerId().equals(fromBorrowerId)) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("403")
+                    .message("Only the current borrower can initiate a transfer")
+                    .build();
+        }
+
+        if (borrowing.getStatus() != BorrowingStatus.ACTIVE) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("400")
+                    .message("Transfers can only be initiated on active borrowings")
+                    .build();
+        }
+
+        if (transferRepository.hasPendingTransfer(borrowingId)) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("400")
+                    .message("A transfer is already pending on this borrowing")
+                    .build();
+        }
+
+        Integer toBorrowerId = request.getToBorrowerId();
+        if (toBorrowerId.equals(fromBorrowerId)) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("400").message("Cannot transfer to yourself").build();
+        }
+        if (toBorrowerId.equals(borrowing.getOwnerId())) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("400")
+                    .message("Cannot transfer to the vehicle owner; use the return flow instead")
+                    .build();
+        }
+
+        try {
+            UserResponse recipient = authClient.getUser(toBorrowerId);
+            if (recipient == null) {
+                return GenericResponse.builder()
+                        .status(ERROR).code("404").message("Recipient user not found").build();
+            }
+        } catch (Exception e) {
+            log.error("Error fetching recipient {}: {}", toBorrowerId, e.getMessage());
+            return GenericResponse.builder()
+                    .status(ERROR).code("404").message("Recipient user not found").build();
+        }
+
+        MediaFile transferImage = null;
+        if (request.getTransferImageId() != null) {
+            transferImage = mediaFileRepository.findById(request.getTransferImageId()).orElse(null);
+        }
+
+        BorrowingTransfer transfer = BorrowingTransfer.builder()
+                .borrowingId(borrowingId)
+                .fromBorrowerId(fromBorrowerId)
+                .toBorrowerId(toBorrowerId)
+                .status(TransferStatus.PENDING)
+                .reason(request.getReason())
+                .notes(request.getNotes())
+                .transferImage(transferImage)
+                .requestedAt(LocalDateTime.now())
+                .isDeleted(false)
+                .build();
+        BorrowingTransfer savedTransfer = transferRepository.save(transfer);
+
+        borrowing.setStatus(BorrowingStatus.TRANSFER_REQUESTED);
+        borrowingRepository.save(borrowing);
+
+        log.info("Transfer {} created on borrowing {} (PENDING)", savedTransfer.getId(), borrowingId);
+
+        Optional<VehicleDetails> vehicleOpt = vehicleRepository.findById(borrowing.getVehicleId());
+        vehicleOpt.ifPresent(vehicle ->
+                notificationService.sendTransferRequestedNotification(borrowing, savedTransfer, vehicle));
+
+        return GenericResponse.builder()
+                .status(SUCCESS).code("201")
+                .message("Transfer request created. Awaiting recipient acceptance.")
+                .body(mapper.toTransferResponse(savedTransfer))
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse acceptTransfer(Long borrowingId, Long transferId, Integer toBorrowerId) {
+        log.info("Accepting transfer {} on borrowing {} by {}", transferId, borrowingId, toBorrowerId);
+
+        Optional<BorrowingTransfer> transferOpt = transferRepository.findById(transferId);
+        if (transferOpt.isEmpty() || !transferOpt.get().getBorrowingId().equals(borrowingId)) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("404").message("Transfer not found").build();
+        }
+        BorrowingTransfer transfer = transferOpt.get();
+
+        if (!transfer.getToBorrowerId().equals(toBorrowerId)) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("403")
+                    .message("Only the intended recipient can accept this transfer")
+                    .build();
+        }
+
+        if (transfer.getStatus() != TransferStatus.PENDING) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("400")
+                    .message("Only pending transfers can be accepted")
+                    .build();
+        }
+
+        VehicleBorrowing borrowing = borrowingRepository.findById(borrowingId).orElseThrow();
+
+        transfer.setStatus(TransferStatus.ACCEPTED);
+        transfer.setResolvedAt(LocalDateTime.now());
+        BorrowingTransfer savedTransfer = transferRepository.save(transfer);
+
+        borrowing.setBorrowerId(toBorrowerId);
+        borrowing.setStatus(BorrowingStatus.ACTIVE);
+        borrowingRepository.save(borrowing);
+
+        log.info("Transfer {} accepted; borrowing {} rotated to borrower {}",
+                transferId, borrowingId, toBorrowerId);
+
+        Optional<VehicleDetails> vehicleOpt = vehicleRepository.findById(borrowing.getVehicleId());
+        vehicleOpt.ifPresent(vehicle ->
+                notificationService.sendTransferAcceptedNotification(borrowing, savedTransfer, vehicle));
+
+        return GenericResponse.builder()
+                .status(SUCCESS).code("200")
+                .message("Transfer accepted. You are now the current borrower.")
+                .body(mapper.toTransferResponse(savedTransfer))
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse rejectTransfer(Long borrowingId, Long transferId, Integer toBorrowerId,
+                                           TransferRejectionRequest request) {
+        log.info("Rejecting transfer {} on borrowing {} by {}", transferId, borrowingId, toBorrowerId);
+
+        Optional<BorrowingTransfer> transferOpt = transferRepository.findById(transferId);
+        if (transferOpt.isEmpty() || !transferOpt.get().getBorrowingId().equals(borrowingId)) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("404").message("Transfer not found").build();
+        }
+        BorrowingTransfer transfer = transferOpt.get();
+
+        if (!transfer.getToBorrowerId().equals(toBorrowerId)) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("403")
+                    .message("Only the intended recipient can reject this transfer")
+                    .build();
+        }
+
+        if (transfer.getStatus() != TransferStatus.PENDING) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("400")
+                    .message("Only pending transfers can be rejected")
+                    .build();
+        }
+
+        VehicleBorrowing borrowing = borrowingRepository.findById(borrowingId).orElseThrow();
+
+        transfer.setStatus(TransferStatus.REJECTED);
+        transfer.setResolvedAt(LocalDateTime.now());
+        if (request != null && request.getReason() != null) {
+            transfer.setReason(request.getReason());
+        }
+        BorrowingTransfer savedTransfer = transferRepository.save(transfer);
+
+        borrowing.setStatus(BorrowingStatus.ACTIVE);
+        borrowingRepository.save(borrowing);
+
+        log.info("Transfer {} rejected; borrowing {} remains with {}",
+                transferId, borrowingId, borrowing.getBorrowerId());
+
+        Optional<VehicleDetails> vehicleOpt = vehicleRepository.findById(borrowing.getVehicleId());
+        vehicleOpt.ifPresent(vehicle ->
+                notificationService.sendTransferRejectedNotification(borrowing, savedTransfer, vehicle));
+
+        return GenericResponse.builder()
+                .status(SUCCESS).code("200")
+                .message("Transfer declined")
+                .body(mapper.toTransferResponse(savedTransfer))
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse cancelTransfer(Long borrowingId, Long transferId, Integer fromBorrowerId) {
+        log.info("Cancelling transfer {} on borrowing {} by {}", transferId, borrowingId, fromBorrowerId);
+
+        Optional<BorrowingTransfer> transferOpt = transferRepository.findById(transferId);
+        if (transferOpt.isEmpty() || !transferOpt.get().getBorrowingId().equals(borrowingId)) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("404").message("Transfer not found").build();
+        }
+        BorrowingTransfer transfer = transferOpt.get();
+
+        if (!transfer.getFromBorrowerId().equals(fromBorrowerId)) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("403")
+                    .message("Only the requesting borrower can cancel this transfer")
+                    .build();
+        }
+
+        if (transfer.getStatus() != TransferStatus.PENDING) {
+            return GenericResponse.builder()
+                    .status(ERROR).code("400")
+                    .message("Only pending transfers can be cancelled")
+                    .build();
+        }
+
+        VehicleBorrowing borrowing = borrowingRepository.findById(borrowingId).orElseThrow();
+
+        transfer.setStatus(TransferStatus.CANCELLED);
+        transfer.setResolvedAt(LocalDateTime.now());
+        BorrowingTransfer savedTransfer = transferRepository.save(transfer);
+
+        borrowing.setStatus(BorrowingStatus.ACTIVE);
+        borrowingRepository.save(borrowing);
+
+        log.info("Transfer {} cancelled by requester {}", transferId, fromBorrowerId);
+
+        Optional<VehicleDetails> vehicleOpt = vehicleRepository.findById(borrowing.getVehicleId());
+        vehicleOpt.ifPresent(vehicle ->
+                notificationService.sendTransferCancelledNotification(borrowing, savedTransfer, vehicle));
+
+        return GenericResponse.builder()
+                .status(SUCCESS).code("200")
+                .message("Transfer cancelled")
+                .body(mapper.toTransferResponse(savedTransfer))
+                .build();
+    }
+
+    @Override
+    public GenericResponse getTransfersForBorrowing(Long borrowingId) {
+        log.info("Fetching transfer history for borrowing {}", borrowingId);
+        List<BorrowingTransfer> transfers = transferRepository
+                .findByBorrowingIdAndIsDeletedFalseOrderByCreatedAtAsc(borrowingId);
+        return GenericResponse.builder()
+                .status(SUCCESS).code("200")
+                .message("Transfer history retrieved successfully")
+                .body(transfers.stream().map(mapper::toTransferResponse).toList())
                 .build();
     }
 

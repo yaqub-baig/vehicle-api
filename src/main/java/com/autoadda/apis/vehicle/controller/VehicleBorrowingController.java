@@ -2,7 +2,9 @@ package com.autoadda.apis.vehicle.controller;
 
 import com.autoadda.apis.vehicle.request.BorrowingRejectionRequest;
 import com.autoadda.apis.vehicle.request.BorrowingReturnRequest;
+import com.autoadda.apis.vehicle.request.BorrowingTransferRequest;
 import com.autoadda.apis.vehicle.request.OwnerInitiatedBorrowingRequest;
+import com.autoadda.apis.vehicle.request.TransferRejectionRequest;
 import com.autoadda.apis.vehicle.request.VehicleBorrowingRequest;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.service.VehicleBorrowingService;
@@ -226,5 +228,67 @@ public class VehicleBorrowingController {
                 .message(available ? "Vehicle is available for borrowing" : "Vehicle is not available for borrowing")
                 .body(Map.of("available", available))
                 .build();
+    }
+
+    /**
+     * Current borrower proposes handover to another user
+     * POST /vehicle-borrowings/{id}/transfer
+     */
+    @PostMapping("/{id}/transfer")
+    public GenericResponse initiateTransfer(
+            @PathVariable Long id,
+            @RequestBody BorrowingTransferRequest request,
+            @RequestHeader("X-Auto-Adda-Id") String userId) {
+        Integer fromBorrowerId = Integer.parseInt(userId);
+        return borrowingService.initiateTransfer(id, fromBorrowerId, request);
+    }
+
+    /**
+     * Recipient accepts a pending transfer
+     * PUT /vehicle-borrowings/{id}/transfers/{tid}/accept
+     */
+    @PutMapping("/{id}/transfers/{tid}/accept")
+    public GenericResponse acceptTransfer(
+            @PathVariable Long id,
+            @PathVariable Long tid,
+            @RequestHeader("X-Auto-Adda-Id") String userId) {
+        Integer toBorrowerId = Integer.parseInt(userId);
+        return borrowingService.acceptTransfer(id, tid, toBorrowerId);
+    }
+
+    /**
+     * Recipient rejects a pending transfer
+     * PUT /vehicle-borrowings/{id}/transfers/{tid}/reject
+     */
+    @PutMapping("/{id}/transfers/{tid}/reject")
+    public GenericResponse rejectTransfer(
+            @PathVariable Long id,
+            @PathVariable Long tid,
+            @RequestHeader("X-Auto-Adda-Id") String userId,
+            @RequestBody(required = false) TransferRejectionRequest request) {
+        Integer toBorrowerId = Integer.parseInt(userId);
+        return borrowingService.rejectTransfer(id, tid, toBorrowerId, request);
+    }
+
+    /**
+     * Requesting borrower cancels a pending transfer
+     * PUT /vehicle-borrowings/{id}/transfers/{tid}/cancel
+     */
+    @PutMapping("/{id}/transfers/{tid}/cancel")
+    public GenericResponse cancelTransfer(
+            @PathVariable Long id,
+            @PathVariable Long tid,
+            @RequestHeader("X-Auto-Adda-Id") String userId) {
+        Integer fromBorrowerId = Integer.parseInt(userId);
+        return borrowingService.cancelTransfer(id, tid, fromBorrowerId);
+    }
+
+    /**
+     * Full transfer chain for a borrowing
+     * GET /vehicle-borrowings/{id}/transfers
+     */
+    @GetMapping("/{id}/transfers")
+    public GenericResponse getTransfers(@PathVariable Long id) {
+        return borrowingService.getTransfersForBorrowing(id);
     }
 }

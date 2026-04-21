@@ -26,6 +26,9 @@ public class VehicleBorrowing {
     @Column(name = "borrower_id", nullable = false)
     private Integer borrowerId;
 
+    @Column(name = "original_borrower_id")
+    private Integer originalBorrowerId;
+
     @Column(name = "vehicle_id", nullable = false)
     private Integer vehicleId;
 
@@ -89,6 +92,9 @@ public class VehicleBorrowing {
         }
         if (returnConfirmedByOwner == null) {
             returnConfirmedByOwner = false;
+        }
+        if (originalBorrowerId == null) {
+            originalBorrowerId = borrowerId;
         }
     }
 

@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -17,6 +18,8 @@ public class VehicleBorrowingResponse {
     private Long id;
     private Integer borrowerId;
     private String borrowerName;
+    private Integer originalBorrowerId;
+    private String originalBorrowerName;
     private Integer vehicleId;
     private String vehicleInfo;
     private Integer ownerId;
@@ -34,4 +37,6 @@ public class VehicleBorrowingResponse {
     private String rejectionReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private BorrowingTransferResponse activeTransfer;
+    private List<BorrowingTransferResponse> transferHistory;
 }

@@ -1,6 +1,7 @@
 package com.autoadda.apis.vehicle.service.impl;
 
 import com.autoadda.apis.vehicle.clients.AuthClient;
+import com.autoadda.apis.vehicle.entity.BorrowingTransfer;
 import com.autoadda.apis.vehicle.entity.VehicleBorrowing;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.request.EmailRequest;
@@ -51,6 +52,7 @@ public class BorrowingNotificationService {
             UserResponse owner = authClient.getUser(borrowing.getOwnerId());
 
             sendApprovalToBorrower(borrowing, vehicle, borrower, owner);
+            sendApprovalConfirmationToOwner(borrowing, vehicle, borrower, owner);
 
             log.info("Approval notifications sent for borrowing ID: {}", borrowing.getId());
         } catch (Exception e) {
@@ -68,6 +70,7 @@ public class BorrowingNotificationService {
             UserResponse owner = authClient.getUser(borrowing.getOwnerId());
 
             sendRejectionToBorrower(borrowing, vehicle, borrower, owner);
+            sendRejectionConfirmationToOwner(borrowing, vehicle, borrower, owner);
 
             log.info("Rejection notifications sent for borrowing ID: {}", borrowing.getId());
         } catch (Exception e) {
@@ -154,11 +157,93 @@ public class BorrowingNotificationService {
             UserResponse owner = authClient.getUser(borrowing.getOwnerId());
 
             sendAssignmentToBorrower(borrowing, vehicle, borrower, owner);
+            sendAssignmentConfirmationToOwner(borrowing, vehicle, borrower, owner);
 
             log.info("Owner assignment notifications sent for borrowing ID: {}", borrowing.getId());
         } catch (Exception e) {
             log.error("Failed to send owner assignment notifications for borrowing {}: {}",
                     borrowing.getId(), e.getMessage(), e);
+        }
+    }
+
+    @Async
+    public void sendTransferRequestedNotification(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                  VehicleDetails vehicle) {
+        try {
+            log.info("Sending transfer requested notifications for borrowing ID: {}, transfer ID: {}",
+                    borrowing.getId(), transfer.getId());
+
+            UserResponse fromBorrower = authClient.getUser(transfer.getFromBorrowerId());
+            UserResponse toBorrower = authClient.getUser(transfer.getToBorrowerId());
+            UserResponse owner = authClient.getUser(borrowing.getOwnerId());
+
+            sendTransferRequestedToRecipient(borrowing, transfer, vehicle, fromBorrower, toBorrower);
+            sendTransferRequestedToOwner(borrowing, transfer, vehicle, fromBorrower, toBorrower, owner);
+
+            log.info("Transfer requested notifications sent for transfer ID: {}", transfer.getId());
+        } catch (Exception e) {
+            log.error("Failed to send transfer requested notifications for transfer {}: {}",
+                    transfer.getId(), e.getMessage(), e);
+        }
+    }
+
+    @Async
+    public void sendTransferAcceptedNotification(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                 VehicleDetails vehicle) {
+        try {
+            log.info("Sending transfer accepted notifications for transfer ID: {}", transfer.getId());
+
+            UserResponse fromBorrower = authClient.getUser(transfer.getFromBorrowerId());
+            UserResponse toBorrower = authClient.getUser(transfer.getToBorrowerId());
+            UserResponse owner = authClient.getUser(borrowing.getOwnerId());
+
+            sendTransferAcceptedToPreviousBorrower(borrowing, transfer, vehicle, fromBorrower, toBorrower);
+            sendTransferAcceptedToOwner(borrowing, transfer, vehicle, fromBorrower, toBorrower, owner);
+
+            log.info("Transfer accepted notifications sent for transfer ID: {}", transfer.getId());
+        } catch (Exception e) {
+            log.error("Failed to send transfer accepted notifications for transfer {}: {}",
+                    transfer.getId(), e.getMessage(), e);
+        }
+    }
+
+    @Async
+    public void sendTransferRejectedNotification(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                 VehicleDetails vehicle) {
+        try {
+            log.info("Sending transfer rejected notifications for transfer ID: {}", transfer.getId());
+
+            UserResponse fromBorrower = authClient.getUser(transfer.getFromBorrowerId());
+            UserResponse toBorrower = authClient.getUser(transfer.getToBorrowerId());
+            UserResponse owner = authClient.getUser(borrowing.getOwnerId());
+
+            sendTransferRejectedToRequester(borrowing, transfer, vehicle, fromBorrower, toBorrower);
+            sendTransferRejectedToOwner(borrowing, transfer, vehicle, fromBorrower, toBorrower, owner);
+
+            log.info("Transfer rejected notifications sent for transfer ID: {}", transfer.getId());
+        } catch (Exception e) {
+            log.error("Failed to send transfer rejected notifications for transfer {}: {}",
+                    transfer.getId(), e.getMessage(), e);
+        }
+    }
+
+    @Async
+    public void sendTransferCancelledNotification(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                  VehicleDetails vehicle) {
+        try {
+            log.info("Sending transfer cancelled notifications for transfer ID: {}", transfer.getId());
+
+            UserResponse fromBorrower = authClient.getUser(transfer.getFromBorrowerId());
+            UserResponse toBorrower = authClient.getUser(transfer.getToBorrowerId());
+            UserResponse owner = authClient.getUser(borrowing.getOwnerId());
+
+            sendTransferCancelledToRecipient(borrowing, transfer, vehicle, fromBorrower, toBorrower);
+            sendTransferCancelledToOwner(borrowing, transfer, vehicle, fromBorrower, toBorrower, owner);
+
+            log.info("Transfer cancelled notifications sent for transfer ID: {}", transfer.getId());
+        } catch (Exception e) {
+            log.error("Failed to send transfer cancelled notifications for transfer {}: {}",
+                    transfer.getId(), e.getMessage(), e);
         }
     }
 
@@ -379,6 +464,17 @@ public class BorrowingNotificationService {
                     authClient.getPreferencesByCustomerId1(owner.getId());
             CommunicationPreference prefs = prefsResponse.getBody();
 
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Picked Up - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildBorrowingStartedEmailBody(borrowing, vehicle, borrower, owner);
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
             if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
                 authClient.sendNotification(new SendNotificationRequest(
                         String.valueOf(owner.getId()),
@@ -388,6 +484,12 @@ public class BorrowingNotificationService {
                                 borrower.getName(), vehicle.getBrand(), vehicle.getModel()),
                         VEHICLE_BORROWINGS + borrowing.getId()
                 ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s has picked up your %s %s.",
+                        borrower.getName(), vehicle.getBrand(), vehicle.getModel());
+                authClient.sendSms(new SmsRequest(owner.getMobileNumber(), smsMessage));
             }
         } catch (Exception e) {
             log.error("Failed to send borrowing started notification to owner {}: {}", owner.getId(), e.getMessage());
@@ -457,6 +559,17 @@ public class BorrowingNotificationService {
                     authClient.getPreferencesByCustomerId1(owner.getId());
             CommunicationPreference prefs = prefsResponse.getBody();
 
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Return Completed - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildReturnCompletedOwnerEmailBody(borrowing, vehicle, owner);
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
             if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
                 authClient.sendNotification(new SendNotificationRequest(
                         String.valueOf(owner.getId()),
@@ -466,6 +579,12 @@ public class BorrowingNotificationService {
                                 vehicle.getBrand(), vehicle.getModel()),
                         VEHICLE_BORROWINGS + borrowing.getId()
                 ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: Your %s %s has been returned successfully.",
+                        vehicle.getBrand(), vehicle.getModel());
+                authClient.sendSms(new SmsRequest(owner.getMobileNumber(), smsMessage));
             }
         } catch (Exception e) {
             log.error("Failed to send return confirmed notification to owner {}: {}", owner.getId(), e.getMessage());
@@ -479,6 +598,17 @@ public class BorrowingNotificationService {
                     authClient.getPreferencesByCustomerId1(owner.getId());
             CommunicationPreference prefs = prefsResponse.getBody();
 
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Borrowing Request Cancelled - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildCancellationOwnerEmailBody(borrowing, vehicle, borrower, owner);
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
             if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
                 authClient.sendNotification(new SendNotificationRequest(
                         String.valueOf(owner.getId()),
@@ -488,6 +618,12 @@ public class BorrowingNotificationService {
                                 borrower.getName(), vehicle.getBrand(), vehicle.getModel()),
                         VEHICLE_BORROWINGS + borrowing.getId()
                 ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s has cancelled their request to borrow your %s %s.",
+                        borrower.getName(), vehicle.getBrand(), vehicle.getModel());
+                authClient.sendSms(new SmsRequest(owner.getMobileNumber(), smsMessage));
             }
         } catch (Exception e) {
             log.error("Failed to send cancellation notification to owner {}: {}", owner.getId(), e.getMessage());
@@ -587,6 +723,403 @@ public class BorrowingNotificationService {
         );
     }
 
+    private void sendApprovalConfirmationToOwner(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                  UserResponse borrower, UserResponse owner) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(owner.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("You Approved a Borrowing Request - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildOwnerApprovalConfirmationEmailBody(borrowing, vehicle, borrower, owner);
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+        } catch (Exception e) {
+            log.error("Failed to send approval confirmation to owner {}: {}", owner.getId(), e.getMessage());
+        }
+    }
+
+    private void sendRejectionConfirmationToOwner(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                   UserResponse borrower, UserResponse owner) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(owner.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("You Declined a Borrowing Request - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildOwnerRejectionConfirmationEmailBody(borrowing, vehicle, borrower, owner);
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+        } catch (Exception e) {
+            log.error("Failed to send rejection confirmation to owner {}: {}", owner.getId(), e.getMessage());
+        }
+    }
+
+    private void sendAssignmentConfirmationToOwner(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                    UserResponse borrower, UserResponse owner) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(owner.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("You Assigned Your Vehicle - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildOwnerAssignmentConfirmationEmailBody(borrowing, vehicle, borrower, owner);
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+        } catch (Exception e) {
+            log.error("Failed to send assignment confirmation to owner {}: {}", owner.getId(), e.getMessage());
+        }
+    }
+
+    private void sendTransferRequestedToRecipient(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                   VehicleDetails vehicle, UserResponse fromBorrower,
+                                                   UserResponse toBorrower) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(toBorrower.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Transfer Requested - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildTransferRequestRecipientEmailBody(borrowing, transfer, vehicle,
+                        fromBorrower, toBorrower);
+                authClient.sendEmail(toBorrower.getId(), EmailRequest.builder()
+                        .to(toBorrower.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(toBorrower.getId()),
+                        CUSTOMER,
+                        "Vehicle Transfer Requested",
+                        String.format("%s wants to hand over %s %s to you. Please review.",
+                                fromBorrower.getName(), vehicle.getBrand(), vehicle.getModel()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s wants to transfer %s %s to you. Please review.",
+                        fromBorrower.getName(), vehicle.getBrand(), vehicle.getModel());
+                authClient.sendSms(new SmsRequest(toBorrower.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send transfer request to recipient {}: {}", toBorrower.getId(), e.getMessage());
+        }
+    }
+
+    private void sendTransferRequestedToOwner(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                               VehicleDetails vehicle, UserResponse fromBorrower,
+                                               UserResponse toBorrower, UserResponse owner) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(owner.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Transfer Requested - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildTransferRequestOwnerEmailBody(borrowing, transfer, vehicle,
+                        fromBorrower, toBorrower, owner);
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(owner.getId()),
+                        CUSTOMER,
+                        "Vehicle Transfer Requested",
+                        String.format("%s wants to hand over your %s %s to %s",
+                                fromBorrower.getName(), vehicle.getBrand(), vehicle.getModel(), toBorrower.getName()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s wants to transfer your %s %s to %s.",
+                        fromBorrower.getName(), vehicle.getBrand(), vehicle.getModel(), toBorrower.getName());
+                authClient.sendSms(new SmsRequest(owner.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send transfer request to owner {}: {}", owner.getId(), e.getMessage());
+        }
+    }
+
+    private void sendTransferAcceptedToPreviousBorrower(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                        VehicleDetails vehicle, UserResponse fromBorrower,
+                                                        UserResponse toBorrower) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(fromBorrower.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Transfer Accepted - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildTransferAcceptedRequesterEmailBody(borrowing, transfer, vehicle,
+                        fromBorrower, toBorrower);
+                authClient.sendEmail(fromBorrower.getId(), EmailRequest.builder()
+                        .to(fromBorrower.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(fromBorrower.getId()),
+                        CUSTOMER,
+                        "Transfer Accepted",
+                        String.format("%s has accepted the transfer of %s %s.",
+                                toBorrower.getName(), vehicle.getBrand(), vehicle.getModel()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s has accepted the transfer of %s %s.",
+                        toBorrower.getName(), vehicle.getBrand(), vehicle.getModel());
+                authClient.sendSms(new SmsRequest(fromBorrower.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send transfer accepted to previous borrower {}: {}",
+                    fromBorrower.getId(), e.getMessage());
+        }
+    }
+
+    private void sendTransferAcceptedToOwner(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                              VehicleDetails vehicle, UserResponse fromBorrower,
+                                              UserResponse toBorrower, UserResponse owner) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(owner.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Transfer Completed - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildTransferAcceptedOwnerEmailBody(borrowing, transfer, vehicle,
+                        fromBorrower, toBorrower, owner);
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(owner.getId()),
+                        CUSTOMER,
+                        "Vehicle Transfer Completed",
+                        String.format("%s has taken over your %s %s from %s.",
+                                toBorrower.getName(), vehicle.getBrand(), vehicle.getModel(), fromBorrower.getName()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s has taken over your %s %s from %s.",
+                        toBorrower.getName(), vehicle.getBrand(), vehicle.getModel(), fromBorrower.getName());
+                authClient.sendSms(new SmsRequest(owner.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send transfer accepted to owner {}: {}", owner.getId(), e.getMessage());
+        }
+    }
+
+    private void sendTransferRejectedToRequester(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                  VehicleDetails vehicle, UserResponse fromBorrower,
+                                                  UserResponse toBorrower) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(fromBorrower.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Transfer Declined - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildTransferRejectedRequesterEmailBody(borrowing, transfer, vehicle,
+                        fromBorrower, toBorrower);
+                authClient.sendEmail(fromBorrower.getId(), EmailRequest.builder()
+                        .to(fromBorrower.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(fromBorrower.getId()),
+                        CUSTOMER,
+                        "Transfer Declined",
+                        String.format("%s declined the transfer of %s %s.",
+                                toBorrower.getName(), vehicle.getBrand(), vehicle.getModel()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s declined the transfer of %s %s.",
+                        toBorrower.getName(), vehicle.getBrand(), vehicle.getModel());
+                authClient.sendSms(new SmsRequest(fromBorrower.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send transfer rejected to requester {}: {}",
+                    fromBorrower.getId(), e.getMessage());
+        }
+    }
+
+    private void sendTransferRejectedToOwner(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                              VehicleDetails vehicle, UserResponse fromBorrower,
+                                              UserResponse toBorrower, UserResponse owner) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(owner.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Transfer Declined - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildTransferRejectedOwnerEmailBody(borrowing, transfer, vehicle,
+                        fromBorrower, toBorrower, owner);
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(owner.getId()),
+                        CUSTOMER,
+                        "Vehicle Transfer Declined",
+                        String.format("%s declined to take over your %s %s. %s still holds the vehicle.",
+                                toBorrower.getName(), vehicle.getBrand(), vehicle.getModel(), fromBorrower.getName()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s declined the transfer of your %s %s. %s still holds it.",
+                        toBorrower.getName(), vehicle.getBrand(), vehicle.getModel(), fromBorrower.getName());
+                authClient.sendSms(new SmsRequest(owner.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send transfer rejected to owner {}: {}", owner.getId(), e.getMessage());
+        }
+    }
+
+    private void sendTransferCancelledToRecipient(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                   VehicleDetails vehicle, UserResponse fromBorrower,
+                                                   UserResponse toBorrower) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(toBorrower.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Transfer Cancelled - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildTransferCancelledRecipientEmailBody(borrowing, transfer, vehicle,
+                        fromBorrower, toBorrower);
+                authClient.sendEmail(toBorrower.getId(), EmailRequest.builder()
+                        .to(toBorrower.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(toBorrower.getId()),
+                        CUSTOMER,
+                        "Transfer Cancelled",
+                        String.format("%s cancelled the transfer of %s %s.",
+                                fromBorrower.getName(), vehicle.getBrand(), vehicle.getModel()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s cancelled the transfer of %s %s.",
+                        fromBorrower.getName(), vehicle.getBrand(), vehicle.getModel());
+                authClient.sendSms(new SmsRequest(toBorrower.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send transfer cancelled to recipient {}: {}",
+                    toBorrower.getId(), e.getMessage());
+        }
+    }
+
+    private void sendTransferCancelledToOwner(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                               VehicleDetails vehicle, UserResponse fromBorrower,
+                                               UserResponse toBorrower, UserResponse owner) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(owner.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Transfer Cancelled - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildTransferCancelledOwnerEmailBody(borrowing, transfer, vehicle,
+                        fromBorrower, toBorrower, owner);
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(owner.getId()),
+                        CUSTOMER,
+                        "Vehicle Transfer Cancelled",
+                        String.format("%s cancelled the transfer of your %s %s to %s.",
+                                fromBorrower.getName(), vehicle.getBrand(), vehicle.getModel(), toBorrower.getName()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s cancelled the transfer of your %s %s to %s.",
+                        fromBorrower.getName(), vehicle.getBrand(), vehicle.getModel(), toBorrower.getName());
+                authClient.sendSms(new SmsRequest(owner.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send transfer cancelled to owner {}: {}", owner.getId(), e.getMessage());
+        }
+    }
+
     private String buildReturnInitiatedEmailBody(VehicleBorrowing borrowing, VehicleDetails vehicle,
                                                   UserResponse borrower, UserResponse owner) {
         return String.format("""
@@ -612,6 +1145,404 @@ public class BorrowingNotificationService {
                 vehicle.getYear() != null ? vehicle.getYear() : "N/A",
                 borrower.getName(),
                 borrowing.getReturnNotes() != null ? borrowing.getReturnNotes() : "No notes provided"
+        );
+    }
+
+    private String buildBorrowingStartedEmailBody(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                   UserResponse borrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                %s has picked up your vehicle.
+
+                BORROWING DETAILS:
+                - Borrowing ID: %d
+                - Vehicle: %s %s (%s)
+                - Registration: %s
+                - Borrower: %s
+                - Borrower Contact: %s
+                - Pick-up Time: %s
+                - Expected Return: %s
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrower.getName(),
+                borrowing.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                vehicle.getNumber() != null ? vehicle.getNumber() : "N/A",
+                borrower.getName(),
+                borrower.getMobileNumber(),
+                borrowing.getBorrowingTime(),
+                borrowing.getExpectedReturnTime()
+        );
+    }
+
+    private String buildReturnCompletedOwnerEmailBody(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                      UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                Your vehicle has been returned successfully.
+
+                BORROWING DETAILS:
+                - Borrowing ID: %d
+                - Vehicle: %s %s (%s)
+                - Registration: %s
+                - Actual Return Time: %s
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrowing.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                vehicle.getNumber() != null ? vehicle.getNumber() : "N/A",
+                borrowing.getActualReturnTime()
+        );
+    }
+
+    private String buildCancellationOwnerEmailBody(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                   UserResponse borrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                %s has cancelled their borrowing request for your vehicle.
+
+                BORROWING DETAILS:
+                - Borrowing ID: %d
+                - Vehicle: %s %s (%s)
+                - Borrower: %s
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrower.getName(),
+                borrowing.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                borrower.getName()
+        );
+    }
+
+    private String buildOwnerApprovalConfirmationEmailBody(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                           UserResponse borrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                You approved a borrowing request for your vehicle.
+
+                BORROWING DETAILS:
+                - Borrowing ID: %d
+                - Vehicle: %s %s (%s)
+                - Borrower: %s
+                - Borrower Contact: %s
+                - Expected Return: %s
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrowing.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                borrower.getName(),
+                borrower.getMobileNumber(),
+                borrowing.getExpectedReturnTime()
+        );
+    }
+
+    private String buildOwnerRejectionConfirmationEmailBody(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                            UserResponse borrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                You declined a borrowing request for your vehicle.
+
+                BORROWING DETAILS:
+                - Borrowing ID: %d
+                - Vehicle: %s %s (%s)
+                - Borrower: %s
+                - Rejection Reason: %s
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrowing.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                borrower.getName(),
+                borrowing.getRejectionReason() != null ? borrowing.getRejectionReason() : "Not provided"
+        );
+    }
+
+    private String buildOwnerAssignmentConfirmationEmailBody(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                             UserResponse borrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                You assigned your vehicle to a borrower.
+
+                BORROWING DETAILS:
+                - Borrowing ID: %d
+                - Vehicle: %s %s (%s)
+                - Borrower: %s
+                - Borrower Contact: %s
+                - Expected Return: %s
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrowing.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                borrower.getName(),
+                borrower.getMobileNumber(),
+                borrowing.getExpectedReturnTime()
+        );
+    }
+
+    private String buildTransferRequestRecipientEmailBody(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                           VehicleDetails vehicle, UserResponse fromBorrower,
+                                                           UserResponse toBorrower) {
+        return String.format("""
+                Dear %s,
+
+                %s would like to hand over a borrowed vehicle to you.
+
+                TRANSFER DETAILS:
+                - Borrowing ID: %d
+                - Transfer ID: %d
+                - Vehicle: %s %s (%s)
+                - Registration: %s
+                - Current Holder: %s
+                - Current Holder Contact: %s
+                - Reason: %s
+                - Expected Return (inherited): %s
+
+                Please log in to AutoAdda to accept or decline the transfer.
+
+                Best regards,
+                AutoAdda Team""",
+                toBorrower.getName(),
+                fromBorrower.getName(),
+                borrowing.getId(),
+                transfer.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                vehicle.getNumber() != null ? vehicle.getNumber() : "N/A",
+                fromBorrower.getName(),
+                fromBorrower.getMobileNumber(),
+                transfer.getReason() != null ? transfer.getReason() : "Not specified",
+                borrowing.getExpectedReturnTime()
+        );
+    }
+
+    private String buildTransferRequestOwnerEmailBody(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                       VehicleDetails vehicle, UserResponse fromBorrower,
+                                                       UserResponse toBorrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                A transfer has been requested on your vehicle.
+
+                TRANSFER DETAILS:
+                - Borrowing ID: %d
+                - Transfer ID: %d
+                - Vehicle: %s %s (%s)
+                - Current Holder: %s
+                - Proposed New Holder: %s
+                - Reason: %s
+                - Expected Return (unchanged): %s
+
+                You are being notified for your records. The transfer does not require your approval.
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrowing.getId(),
+                transfer.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                fromBorrower.getName(),
+                toBorrower.getName(),
+                transfer.getReason() != null ? transfer.getReason() : "Not specified",
+                borrowing.getExpectedReturnTime()
+        );
+    }
+
+    private String buildTransferAcceptedRequesterEmailBody(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                            VehicleDetails vehicle, UserResponse fromBorrower,
+                                                            UserResponse toBorrower) {
+        return String.format("""
+                Dear %s,
+
+                %s has accepted the transfer of the vehicle you were borrowing.
+
+                TRANSFER DETAILS:
+                - Borrowing ID: %d
+                - Transfer ID: %d
+                - Vehicle: %s %s (%s)
+                - New Holder: %s
+                - New Holder Contact: %s
+                - Transferred At: %s
+
+                Best regards,
+                AutoAdda Team""",
+                fromBorrower.getName(),
+                toBorrower.getName(),
+                borrowing.getId(),
+                transfer.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                toBorrower.getName(),
+                toBorrower.getMobileNumber(),
+                transfer.getResolvedAt()
+        );
+    }
+
+    private String buildTransferAcceptedOwnerEmailBody(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                        VehicleDetails vehicle, UserResponse fromBorrower,
+                                                        UserResponse toBorrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                Your vehicle has been handed over to a new holder.
+
+                TRANSFER DETAILS:
+                - Borrowing ID: %d
+                - Transfer ID: %d
+                - Vehicle: %s %s (%s)
+                - Previous Holder: %s
+                - New Holder: %s
+                - New Holder Contact: %s
+                - Expected Return (unchanged): %s
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrowing.getId(),
+                transfer.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                fromBorrower.getName(),
+                toBorrower.getName(),
+                toBorrower.getMobileNumber(),
+                borrowing.getExpectedReturnTime()
+        );
+    }
+
+    private String buildTransferRejectedRequesterEmailBody(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                            VehicleDetails vehicle, UserResponse fromBorrower,
+                                                            UserResponse toBorrower) {
+        return String.format("""
+                Dear %s,
+
+                %s declined the transfer of %s %s. You remain the current holder.
+
+                TRANSFER DETAILS:
+                - Borrowing ID: %d
+                - Transfer ID: %d
+                - Reason: %s
+
+                Best regards,
+                AutoAdda Team""",
+                fromBorrower.getName(),
+                toBorrower.getName(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                borrowing.getId(),
+                transfer.getId(),
+                transfer.getReason() != null ? transfer.getReason() : "Not provided"
+        );
+    }
+
+    private String buildTransferRejectedOwnerEmailBody(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                        VehicleDetails vehicle, UserResponse fromBorrower,
+                                                        UserResponse toBorrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                A transfer attempt on your vehicle was declined.
+
+                TRANSFER DETAILS:
+                - Borrowing ID: %d
+                - Transfer ID: %d
+                - Vehicle: %s %s (%s)
+                - Current Holder (unchanged): %s
+                - Declined By: %s
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrowing.getId(),
+                transfer.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                fromBorrower.getName(),
+                toBorrower.getName()
+        );
+    }
+
+    private String buildTransferCancelledRecipientEmailBody(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                             VehicleDetails vehicle, UserResponse fromBorrower,
+                                                             UserResponse toBorrower) {
+        return String.format("""
+                Dear %s,
+
+                %s cancelled the pending transfer of %s %s to you.
+
+                TRANSFER DETAILS:
+                - Borrowing ID: %d
+                - Transfer ID: %d
+
+                Best regards,
+                AutoAdda Team""",
+                toBorrower.getName(),
+                fromBorrower.getName(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                borrowing.getId(),
+                transfer.getId()
+        );
+    }
+
+    private String buildTransferCancelledOwnerEmailBody(VehicleBorrowing borrowing, BorrowingTransfer transfer,
+                                                         VehicleDetails vehicle, UserResponse fromBorrower,
+                                                         UserResponse toBorrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                A pending transfer on your vehicle was cancelled.
+
+                TRANSFER DETAILS:
+                - Borrowing ID: %d
+                - Transfer ID: %d
+                - Vehicle: %s %s (%s)
+                - Cancelled By: %s
+                - Intended Recipient: %s
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrowing.getId(),
+                transfer.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                fromBorrower.getName(),
+                toBorrower.getName()
         );
     }
 }
