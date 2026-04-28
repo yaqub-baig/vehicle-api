@@ -19,4 +19,5 @@ public class VehicleListingRequest {
     private String description;
     private String city;
     private String status;
+    private String condition;
 }

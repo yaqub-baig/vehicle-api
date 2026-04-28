@@ -87,7 +87,7 @@ public class VehicleListingService {
 
     private List<VehicleListing> findVehiclesByCriteria(VehicleSearchCriteria criteria) {
         if (criteria.hasGlobalSearch() && !criteria.hasSpecificCriteria()) {
-            return vehicleListingRepository.findByAdvancedSearch(criteria.getGlobalSearch());
+            return vehicleListingRepository.findByAdvancedSearch(criteria);
         }
 
         // Check if any search criteria is provided
@@ -128,6 +128,9 @@ public class VehicleListingService {
         }
         if(vehicleListingRequest.getStatus ()!=null){
             vehicleListing.setStatus ( Status.valueOf ( vehicleListingRequest.getStatus ( ).toUpperCase ( ) ));
+        }
+        if(vehicleListingRequest.getCondition ()!=null){
+            vehicleListing.setCondition ( VehicleListingMapper.parseCondition ( vehicleListingRequest.getCondition ( ) ) );
         }
         VehicleListing save = vehicleListingRepository.save ( vehicleListing );
         VehicleListingResponse body = vehicleListingMapper.entityToResponse ( save );
@@ -200,10 +203,7 @@ public class VehicleListingService {
 
     private Page<VehicleListing> findVehiclesByCriteriaWithPagination(VehicleSearchCriteria criteria) {
         if (criteria.hasGlobalSearch() && !criteria.hasSpecificCriteria()) {
-            return vehicleListingRepository.findByAdvancedSearchWithPagination(
-                    criteria.getGlobalSearch(),
-                    criteria
-            );
+            return vehicleListingRepository.findByAdvancedSearchWithPagination(criteria);
         }
 
         // For any search criteria or default case

@@ -1,5 +1,6 @@
 package com.autoadda.apis.vehicle.response;
 
+import com.autoadda.apis.vehicle.util.CarCondition;
 import com.autoadda.apis.vehicle.util.Status;
 import lombok.Data;
 
@@ -14,4 +15,5 @@ public class VehicleListingResponse {
     private String description;
     private VehicleDetailResponse vehicle;
     private String city;
+    private CarCondition condition;
 }

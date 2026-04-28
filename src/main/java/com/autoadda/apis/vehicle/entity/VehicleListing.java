@@ -1,6 +1,7 @@
 package com.autoadda.apis.vehicle.entity;
 
 
+import com.autoadda.apis.vehicle.util.CarCondition;
 import com.autoadda.apis.vehicle.util.Status;
 import lombok.*;
 
@@ -30,6 +31,10 @@ public class VehicleListing {
     private VehicleSale sale;
     @Enumerated(EnumType.STRING)
     private Status status; // LISTED, SOLD, REMOVED
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "condition_type")
+    private CarCondition condition;
     // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -27,7 +27,8 @@ public class VehicleSaleListingController {
             @RequestParam(required = false) String model,
             @RequestParam(required = false) Integer fromYear,
             @RequestParam(required = false) Integer toYear,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String condition) {
 
         VehicleSearchCriteria criteria = VehicleSearchCriteria.builder ( )
                 .location ( location )
@@ -38,6 +39,7 @@ public class VehicleSaleListingController {
                 .fromYear ( fromYear )
                 .toYear ( toYear )
                 .globalSearch ( search )
+                .condition ( condition )
                 .build ( );
 
         return vehicleListingService.getVehicleListings ( criteria );
@@ -68,6 +70,7 @@ public class VehicleSaleListingController {
             @RequestParam(required = false) Integer fromYear,
             @RequestParam(required = false) Integer toYear,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String condition,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String sortBy,
@@ -82,6 +85,7 @@ public class VehicleSaleListingController {
                 .fromYear(fromYear)
                 .toYear(toYear)
                 .globalSearch(search)
+                .condition(condition)
                 .page(page)
                 .size(size)
                 .sortBy(sortBy)

@@ -10,11 +10,11 @@ public interface VehicleListingCustomRepository {
 
     List<VehicleListing> findByCriteria(VehicleSearchCriteria criteria);
 
-    List<VehicleListing> findByAdvancedSearch(String searchQuery);
+    List<VehicleListing> findByAdvancedSearch(VehicleSearchCriteria criteria);
 
     // Paginated methods
     Page<VehicleListing> findByCriteriaWithPagination(VehicleSearchCriteria criteria);
 
-    Page<VehicleListing> findByAdvancedSearchWithPagination(String searchQuery, VehicleSearchCriteria criteria);
+    Page<VehicleListing> findByAdvancedSearchWithPagination(VehicleSearchCriteria criteria);
 
 }

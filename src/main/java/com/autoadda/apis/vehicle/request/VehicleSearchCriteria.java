@@ -1,6 +1,7 @@
 package com.autoadda.apis.vehicle.request;
 
 import com.autoadda.apis.vehicle.exception.InvalidInputException;
+import com.autoadda.apis.vehicle.util.CarCondition;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,6 +26,7 @@ public class VehicleSearchCriteria {
     private Integer fromYear;
     private Integer toYear;
     private String globalSearch;
+    private String condition;
 
     // Pagination fields
     private Integer page;
@@ -41,11 +43,28 @@ public class VehicleSearchCriteria {
     public static final Set<String> VALID_SORT_FIELDS = Set.of("id", "price", "listedDate", DEFAULT_SORT_BY);
 
     public boolean hasAnyCriteria() {
-        return hasLocation() || hasPrice() || hasBrand() || hasModel() || hasYear() || hasGlobalSearch();
+        return hasLocation() || hasPrice() || hasBrand() || hasModel() || hasYear() || hasGlobalSearch() || hasCondition();
     }
 
     public boolean hasSpecificCriteria() {
         return hasLocation() || hasPrice() || hasBrand() || hasModel() || hasYear();
+    }
+
+    public boolean hasCondition() {
+        return condition != null && !condition.trim().isEmpty();
+    }
+
+    public CarCondition getConditionEnum() {
+        if (!hasCondition()) {
+            return null;
+        }
+        try {
+            return CarCondition.valueOf(condition.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new InvalidInputException(
+                "Invalid condition: " + condition + ". Must be NEW or USED"
+            );
+        }
     }
 
     public boolean hasLocation() {
