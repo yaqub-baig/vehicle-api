@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "vehicle_borrowing")
@@ -54,13 +55,13 @@ public class VehicleBorrowing {
     @Column(name = "return_confirmed_by_owner")
     private Boolean returnConfirmedByOwner;
 
-    @ManyToOne
-    @JoinColumn(name = "borrowing_image_id")
-    private MediaFile borrowingImage;
+    @OneToMany(orphanRemoval = true, cascade = CascadeType.ALL)
+    @JoinColumn(name = "borrowing_images_id")
+    private List<MediaFile> borrowingImages;
 
-    @ManyToOne
-    @JoinColumn(name = "return_image_id")
-    private MediaFile returnImage;
+    @OneToMany(orphanRemoval = true, cascade = CascadeType.ALL)
+    @JoinColumn(name = "return_images_id")
+    private List<MediaFile> returnImages;
 
     @Column(name = "borrowing_purpose", length = 500)
     private String borrowingPurpose;

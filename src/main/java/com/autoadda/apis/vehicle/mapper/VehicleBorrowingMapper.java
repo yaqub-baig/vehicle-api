@@ -114,12 +114,16 @@ public class VehicleBorrowingMapper {
             log.warn("Failed to fetch vehicle details for ID {}: {}", entity.getVehicleId(), e.getMessage());
         }
 
-        if (entity.getBorrowingImage() != null) {
-            builder.borrowingImage(mediaFileMapper.toResponse(entity.getBorrowingImage()));
+        if (entity.getBorrowingImages() != null && !entity.getBorrowingImages().isEmpty()) {
+            builder.borrowingImages(entity.getBorrowingImages().stream()
+                    .map(mediaFileMapper::toResponse)
+                    .toList());
         }
 
-        if (entity.getReturnImage() != null) {
-            builder.returnImage(mediaFileMapper.toResponse(entity.getReturnImage()));
+        if (entity.getReturnImages() != null && !entity.getReturnImages().isEmpty()) {
+            builder.returnImages(entity.getReturnImages().stream()
+                    .map(mediaFileMapper::toResponse)
+                    .toList());
         }
 
         return builder.build();
@@ -135,14 +139,14 @@ public class VehicleBorrowingMapper {
     }
 
     public VehicleBorrowing toEntity(VehicleBorrowingRequest request, Integer borrowerId,
-                                      Integer ownerId, MediaFile borrowingImage) {
+                                      Integer ownerId, List<MediaFile> borrowingImages) {
         return VehicleBorrowing.builder()
                 .borrowerId(borrowerId)
                 .originalBorrowerId(borrowerId)
                 .vehicleId(request.getVehicleId())
                 .ownerId(ownerId)
                 .expectedReturnTime(request.getExpectedReturnTime())
-                .borrowingImage(borrowingImage)
+                .borrowingImages(borrowingImages)
                 .borrowingPurpose(request.getBorrowingPurpose())
                 .status(BorrowingStatus.PENDING)
                 .returnConfirmedByBorrower(false)

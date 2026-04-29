@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -107,15 +108,14 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                     .build();
         }
 
-        MediaFile borrowingImage = null;
-        if (request.getBorrowingImageId() != null) {
-            Optional<MediaFile> imageOpt = mediaFileRepository.findById(request.getBorrowingImageId());
-            if (imageOpt.isPresent()) {
-                borrowingImage = imageOpt.get();
+        List<MediaFile> borrowingImages = new ArrayList<>();
+        if (request.getBorrowingImageIds() != null && !request.getBorrowingImageIds().isEmpty()) {
+            for (Long imageId : request.getBorrowingImageIds()) {
+                mediaFileRepository.findById(imageId).ifPresent(borrowingImages::add);
             }
         }
 
-        VehicleBorrowing borrowing = mapper.toEntity(request, borrowerId, vehicle.getCustomerId(), borrowingImage);
+        VehicleBorrowing borrowing = mapper.toEntity(request, borrowerId, vehicle.getCustomerId(), borrowingImages);
         VehicleBorrowing savedBorrowing = borrowingRepository.save(borrowing);
 
         log.info("Borrowing request created successfully with ID: {}", savedBorrowing.getId());
@@ -313,9 +313,16 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
         borrowing.setStatus(BorrowingStatus.RETURN_INITIATED);
         if (request != null) {
             borrowing.setReturnNotes(request.getReturnNotes());
-            if (request.getReturnImageId() != null) {
-                Optional<MediaFile> imageOpt = mediaFileRepository.findById(request.getReturnImageId());
-                imageOpt.ifPresent(borrowing::setReturnImage);
+            if (request.getReturnImageIds() != null && !request.getReturnImageIds().isEmpty()) {
+                List<MediaFile> returnImages = new ArrayList<>();
+                for (Long imageId : request.getReturnImageIds()) {
+                    mediaFileRepository.findById(imageId).ifPresent(returnImages::add);
+                }
+                if (borrowing.getReturnImages() == null) {
+                    borrowing.setReturnImages(new ArrayList<>());
+                }
+                borrowing.getReturnImages().clear();
+                borrowing.getReturnImages().addAll(returnImages);
             }
         }
         borrowing.setReturnConfirmedByBorrower(true);
@@ -676,10 +683,13 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                 .isDeleted(false)
                 .build();
 
-        // Handle borrowing image if provided
-        if (request.getBorrowingImageId() != null) {
-            mediaFileRepository.findById(request.getBorrowingImageId())
-                    .ifPresent(borrowing::setBorrowingImage);
+        // Handle borrowing images if provided
+        if (request.getBorrowingImageIds() != null && !request.getBorrowingImageIds().isEmpty()) {
+            List<MediaFile> borrowingImages = new ArrayList<>();
+            for (Long imageId : request.getBorrowingImageIds()) {
+                mediaFileRepository.findById(imageId).ifPresent(borrowingImages::add);
+            }
+            borrowing.setBorrowingImages(borrowingImages);
         }
 
         VehicleBorrowing savedBorrowing = borrowingRepository.save(borrowing);

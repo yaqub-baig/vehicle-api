@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -18,7 +19,7 @@ public class VehicleBorrowingRequest {
 
     private LocalDateTime expectedReturnTime;
 
-    private Long borrowingImageId;
+    private List<Long> borrowingImageIds;
 
     private String borrowingPurpose;
 }

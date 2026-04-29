@@ -30,8 +30,8 @@ public class VehicleBorrowingResponse {
     private BorrowingStatus status;
     private Boolean returnConfirmedByBorrower;
     private Boolean returnConfirmedByOwner;
-    private MediaFileResponse borrowingImage;
-    private MediaFileResponse returnImage;
+    private List<MediaFileResponse> borrowingImages;
+    private List<MediaFileResponse> returnImages;
     private String borrowingPurpose;
     private String returnNotes;
     private String rejectionReason;
