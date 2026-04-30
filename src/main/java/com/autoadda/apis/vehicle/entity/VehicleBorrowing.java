@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -57,10 +58,12 @@ public class VehicleBorrowing {
 
     @OneToMany(orphanRemoval = true, cascade = CascadeType.ALL)
     @JoinColumn(name = "borrowing_images_id")
+    @BatchSize(size = 50)
     private List<MediaFile> borrowingImages;
 
     @OneToMany(orphanRemoval = true, cascade = CascadeType.ALL)
     @JoinColumn(name = "return_images_id")
+    @BatchSize(size = 50)
     private List<MediaFile> returnImages;
 
     @Column(name = "borrowing_purpose", length = 500)

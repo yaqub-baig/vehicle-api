@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Collections;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -108,12 +107,7 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                     .build();
         }
 
-        List<MediaFile> borrowingImages = new ArrayList<>();
-        if (request.getBorrowingImageIds() != null && !request.getBorrowingImageIds().isEmpty()) {
-            for (Long imageId : request.getBorrowingImageIds()) {
-                mediaFileRepository.findById(imageId).ifPresent(borrowingImages::add);
-            }
-        }
+        List<MediaFile> borrowingImages = resolveMediaFiles(request.getBorrowingImageIds());
 
         VehicleBorrowing borrowing = mapper.toEntity(request, borrowerId, vehicle.getCustomerId(), borrowingImages);
         VehicleBorrowing savedBorrowing = borrowingRepository.save(borrowing);
@@ -313,11 +307,8 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
         borrowing.setStatus(BorrowingStatus.RETURN_INITIATED);
         if (request != null) {
             borrowing.setReturnNotes(request.getReturnNotes());
-            if (request.getReturnImageIds() != null && !request.getReturnImageIds().isEmpty()) {
-                List<MediaFile> returnImages = new ArrayList<>();
-                for (Long imageId : request.getReturnImageIds()) {
-                    mediaFileRepository.findById(imageId).ifPresent(returnImages::add);
-                }
+            List<MediaFile> returnImages = resolveMediaFiles(request.getReturnImageIds());
+            if (!returnImages.isEmpty()) {
                 if (borrowing.getReturnImages() == null) {
                     borrowing.setReturnImages(new ArrayList<>());
                 }
@@ -683,12 +674,8 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                 .isDeleted(false)
                 .build();
 
-        // Handle borrowing images if provided
-        if (request.getBorrowingImageIds() != null && !request.getBorrowingImageIds().isEmpty()) {
-            List<MediaFile> borrowingImages = new ArrayList<>();
-            for (Long imageId : request.getBorrowingImageIds()) {
-                mediaFileRepository.findById(imageId).ifPresent(borrowingImages::add);
-            }
+        List<MediaFile> borrowingImages = resolveMediaFiles(request.getBorrowingImageIds());
+        if (!borrowingImages.isEmpty()) {
             borrowing.setBorrowingImages(borrowingImages);
         }
 
@@ -1028,6 +1015,13 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                 .message("Transfer history retrieved successfully")
                 .body(transfers.stream().map(mapper::toTransferResponse).toList())
                 .build();
+    }
+
+    private List<MediaFile> resolveMediaFiles(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(mediaFileRepository.findAllById(ids));
     }
 
     private boolean isVehicleNotInGarage(Integer vehicleId) {
