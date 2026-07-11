@@ -307,6 +307,7 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
         borrowing.setStatus(BorrowingStatus.RETURN_INITIATED);
         if (request != null) {
             borrowing.setReturnNotes(request.getReturnNotes());
+            borrowing.setKeyReturned(request.getKeyReturned());
             List<MediaFile> returnImages = resolveMediaFiles(request.getReturnImageIds());
             if (!returnImages.isEmpty()) {
                 if (borrowing.getReturnImages() == null) {
@@ -317,6 +318,9 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
             }
         }
         borrowing.setReturnConfirmedByBorrower(true);
+        borrowing.setReturnInitiatedAt(LocalDateTime.now());
+        borrowing.setReturnRejectionReason(null);
+        borrowing.setReturnConfirmedByOwner(false);
         VehicleBorrowing savedBorrowing = borrowingRepository.save(borrowing);
 
         log.info("Return initiated for borrowing {} by borrower {}", borrowingId, borrowerId);
@@ -406,6 +410,60 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                 .status(SUCCESS)
                 .code("200")
                 .message(message)
+                .body(mapper.toResponse(savedBorrowing))
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse rejectReturn(Long borrowingId, Integer ownerId, BorrowingRejectionRequest request) {
+        log.info("Rejecting return for borrowing {} by owner {}", borrowingId, ownerId);
+
+        Optional<VehicleBorrowing> borrowingOpt = borrowingRepository.findById(borrowingId);
+        if (borrowingOpt.isEmpty()) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("404")
+                    .message(BORROWING_NOT_FOUND)
+                    .build();
+        }
+
+        VehicleBorrowing borrowing = borrowingOpt.get();
+
+        if (!borrowing.getOwnerId().equals(ownerId)) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("403")
+                    .message("You are not authorized to reject this return")
+                    .build();
+        }
+
+        if (borrowing.getStatus() != BorrowingStatus.RETURN_INITIATED) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("400")
+                    .message("Only returns in RETURN_INITIATED status can be rejected")
+                    .build();
+        }
+
+        borrowing.setStatus(BorrowingStatus.ACTIVE);
+        if (request != null) {
+            borrowing.setReturnRejectionReason(request.getRejectionReason());
+        }
+        borrowing.setReturnConfirmedByBorrower(false);
+        borrowing.setReturnConfirmedByOwner(false);
+        borrowing.setReturnInitiatedAt(null);
+
+        VehicleBorrowing savedBorrowing = borrowingRepository.save(borrowing);
+        log.info("Return rejected for borrowing {} by owner {}", borrowingId, ownerId);
+
+        Optional<VehicleDetails> vehicleOpt = vehicleRepository.findById(borrowing.getVehicleId());
+        vehicleOpt.ifPresent(vehicle -> notificationService.sendReturnRejectedNotification(savedBorrowing, vehicle));
+
+        return GenericResponse.builder()
+                .status(SUCCESS)
+                .code("200")
+                .message("Return rejected. Vehicle remains with the borrower.")
                 .body(mapper.toResponse(savedBorrowing))
                 .build();
     }

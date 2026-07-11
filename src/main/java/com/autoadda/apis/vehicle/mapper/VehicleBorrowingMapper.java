@@ -50,6 +50,9 @@ public class VehicleBorrowingMapper {
                 .borrowingPurpose(entity.getBorrowingPurpose())
                 .returnNotes(entity.getReturnNotes())
                 .rejectionReason(entity.getRejectionReason())
+                .keyReturned(entity.getKeyReturned())
+                .returnRejectionReason(entity.getReturnRejectionReason())
+                .returnInitiatedAt(entity.getReturnInitiatedAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt());
 

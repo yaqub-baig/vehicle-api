@@ -75,6 +75,15 @@ public class VehicleBorrowing {
     @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
 
+    @Column(name = "key_returned")
+    private Boolean keyReturned;
+
+    @Column(name = "return_rejection_reason", length = 500)
+    private String returnRejectionReason;
+
+    @Column(name = "return_initiated_at")
+    private LocalDateTime returnInitiatedAt;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

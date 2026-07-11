@@ -28,6 +28,8 @@ public interface VehicleBorrowingService {
 
     GenericResponse confirmReturn(Long borrowingId, Integer userId);
 
+    GenericResponse rejectReturn(Long borrowingId, Integer ownerId, BorrowingRejectionRequest request);
+
     GenericResponse cancelBorrowingRequest(Long borrowingId, Integer borrowerId);
 
     GenericResponse getBorrowingById(Long borrowingId);

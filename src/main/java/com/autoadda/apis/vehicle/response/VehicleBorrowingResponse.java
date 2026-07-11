@@ -35,6 +35,9 @@ public class VehicleBorrowingResponse {
     private String borrowingPurpose;
     private String returnNotes;
     private String rejectionReason;
+    private Boolean keyReturned;
+    private String returnRejectionReason;
+    private LocalDateTime returnInitiatedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private BorrowingTransferResponse activeTransfer;

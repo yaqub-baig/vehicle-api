@@ -117,6 +117,19 @@ public class VehicleBorrowingController {
     }
 
     /**
+     * Owner rejects a pending return
+     * PUT /vehicle-borrowings/{id}/reject-return
+     */
+    @PutMapping("/{id}/reject-return")
+    public GenericResponse rejectReturn(
+            @PathVariable Long id,
+            @RequestHeader("X-Auto-Adda-Id") String userId,
+            @RequestBody(required = false) BorrowingRejectionRequest request) {
+        Integer ownerId = Integer.parseInt(userId);
+        return borrowingService.rejectReturn(id, ownerId, request);
+    }
+
+    /**
      * Borrower cancels request
      * PUT /vehicle-borrowings/{id}/cancel
      */

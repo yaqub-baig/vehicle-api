@@ -14,4 +14,6 @@ public class BorrowingReturnRequest {
     private List<Long> returnImageIds;
 
     private String returnNotes;
+
+    private Boolean keyReturned;
 }

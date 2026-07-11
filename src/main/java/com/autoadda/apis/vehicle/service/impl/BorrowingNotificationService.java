@@ -132,6 +132,40 @@ public class BorrowingNotificationService {
     }
 
     @Async
+    public void sendReturnApprovalReminderNotification(VehicleBorrowing borrowing, VehicleDetails vehicle) {
+        try {
+            log.info("Sending return approval reminder for borrowing ID: {}", borrowing.getId());
+
+            UserResponse borrower = authClient.getUser(borrowing.getBorrowerId());
+            UserResponse owner = authClient.getUser(borrowing.getOwnerId());
+
+            sendReturnApprovalReminderToOwner(borrowing, vehicle, borrower, owner);
+
+            log.info("Return approval reminder sent for borrowing ID: {}", borrowing.getId());
+        } catch (Exception e) {
+            log.error("Failed to send return approval reminder for borrowing {}: {}",
+                    borrowing.getId(), e.getMessage(), e);
+        }
+    }
+
+    @Async
+    public void sendReturnRejectedNotification(VehicleBorrowing borrowing, VehicleDetails vehicle) {
+        try {
+            log.info("Sending return rejected notification for borrowing ID: {}", borrowing.getId());
+
+            UserResponse borrower = authClient.getUser(borrowing.getBorrowerId());
+            UserResponse owner = authClient.getUser(borrowing.getOwnerId());
+
+            sendReturnRejectedToBorrower(borrowing, vehicle, borrower, owner);
+
+            log.info("Return rejected notification sent for borrowing ID: {}", borrowing.getId());
+        } catch (Exception e) {
+            log.error("Failed to send return rejected notification for borrowing {}: {}",
+                    borrowing.getId(), e.getMessage(), e);
+        }
+    }
+
+    @Async
     public void sendCancellationNotification(VehicleBorrowing borrowing, VehicleDetails vehicle) {
         try {
             log.info("Sending cancellation notifications for borrowing ID: {}", borrowing.getId());
@@ -527,6 +561,81 @@ public class BorrowingNotificationService {
             }
         } catch (Exception e) {
             log.error("Failed to send return initiated notification to owner {}: {}", owner.getId(), e.getMessage());
+        }
+    }
+
+    private void sendReturnApprovalReminderToOwner(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                    UserResponse borrower, UserResponse owner) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(owner.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnReminders())) {
+                String subject = String.format("Action Required: Approve or Reject Return - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildReturnApprovalReminderEmailBody(borrowing, vehicle, borrower, owner);
+
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnReminders())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(owner.getId()),
+                        CUSTOMER,
+                        "Vehicle Return Awaiting Your Approval",
+                        String.format("Your %s %s is blocked pending your approval of a return by %s. Please approve or reject it as soon as possible.",
+                                vehicle.getBrand(), vehicle.getModel(), borrower.getName()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnReminders())) {
+                String smsMessage = String.format("AutoAdda: Your %s %s return is awaiting your approval. Please approve/reject ASAP.",
+                        vehicle.getBrand(), vehicle.getModel());
+                authClient.sendSms(new SmsRequest(owner.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send return approval reminder to owner {}: {}", owner.getId(), e.getMessage());
+        }
+    }
+
+    private void sendReturnRejectedToBorrower(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                               UserResponse borrower, UserResponse owner) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(borrower.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Return Rejected - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = buildReturnRejectedEmailBody(borrowing, vehicle, borrower, owner);
+
+                authClient.sendEmail(borrower.getId(), EmailRequest.builder()
+                        .to(borrower.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(borrower.getId()),
+                        CUSTOMER,
+                        "Return Rejected",
+                        String.format("The owner rejected your return of %s %s. Reason: %s. The vehicle remains with you.",
+                                vehicle.getBrand(), vehicle.getModel(),
+                                borrowing.getReturnRejectionReason() != null ? borrowing.getReturnRejectionReason() : "Not specified"),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send return rejected notification to borrower {}: {}", borrower.getId(), e.getMessage());
         }
     }
 
@@ -1145,6 +1254,59 @@ public class BorrowingNotificationService {
                 vehicle.getYear() != null ? vehicle.getYear() : "N/A",
                 borrower.getName(),
                 borrowing.getReturnNotes() != null ? borrowing.getReturnNotes() : "No notes provided"
+        );
+    }
+
+    private String buildReturnApprovalReminderEmailBody(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                          UserResponse borrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                Your vehicle is still blocked pending your approval of a return.
+
+                RETURN DETAILS:
+                - Borrowing ID: %d
+                - Vehicle: %s %s (%s)
+                - Borrower: %s
+                - Return Notes: %s
+
+                Please approve or reject this return as soon as possible so the vehicle can be freed up.
+
+                Best regards,
+                AutoAdda Team""",
+                owner.getName(),
+                borrowing.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                borrower.getName(),
+                borrowing.getReturnNotes() != null ? borrowing.getReturnNotes() : "No notes provided"
+        );
+    }
+
+    private String buildReturnRejectedEmailBody(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                                 UserResponse borrower, UserResponse owner) {
+        return String.format("""
+                Dear %s,
+
+                %s has rejected your return of their vehicle. The vehicle remains with you.
+
+                RETURN DETAILS:
+                - Borrowing ID: %d
+                - Vehicle: %s %s (%s)
+                - Rejection Reason: %s
+
+                Please coordinate with the owner and re-initiate the return when ready.
+
+                Best regards,
+                AutoAdda Team""",
+                borrower.getName(),
+                owner.getName(),
+                borrowing.getId(),
+                vehicle.getBrand(),
+                vehicle.getModel(),
+                vehicle.getYear() != null ? vehicle.getYear() : "N/A",
+                borrowing.getReturnRejectionReason() != null ? borrowing.getReturnRejectionReason() : "Not specified"
         );
     }
 
