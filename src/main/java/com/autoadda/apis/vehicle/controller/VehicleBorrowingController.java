@@ -3,6 +3,7 @@ package com.autoadda.apis.vehicle.controller;
 import com.autoadda.apis.vehicle.request.BorrowingRejectionRequest;
 import com.autoadda.apis.vehicle.request.BorrowingReturnRequest;
 import com.autoadda.apis.vehicle.request.BorrowingTransferRequest;
+import com.autoadda.apis.vehicle.request.ConfirmReturnRequest;
 import com.autoadda.apis.vehicle.request.OwnerInitiatedBorrowingRequest;
 import com.autoadda.apis.vehicle.request.TransferRejectionRequest;
 import com.autoadda.apis.vehicle.request.VehicleBorrowingRequest;
@@ -111,9 +112,10 @@ public class VehicleBorrowingController {
     @PutMapping("/{id}/confirm-return")
     public GenericResponse confirmReturn(
             @PathVariable Long id,
-            @RequestHeader("X-Auto-Adda-Id") String userId) {
+            @RequestHeader("X-Auto-Adda-Id") String userId,
+            @RequestBody(required = false) ConfirmReturnRequest request) {
         Integer confirmerId = Integer.parseInt(userId);
-        return borrowingService.confirmReturn(id, confirmerId);
+        return borrowingService.confirmReturn(id, confirmerId, request);
     }
 
     /**

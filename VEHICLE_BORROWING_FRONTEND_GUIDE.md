@@ -161,23 +161,31 @@ export const searchUserById = async (autoAddaId) => {
 // ============================================
 
 // Confirm return (Both Owner and Borrower)
-export const confirmReturn = async (userId, borrowingId) => {
+// When called by the owner, pass keyReturned to record the owner's own
+// observation of whether the key was physically handed back — independent
+// of whatever the borrower claimed at /return.
+export const confirmReturn = async (userId, borrowingId, keyReturned = null) => {
   const response = await fetch(`${BORROWING_URL}/${borrowingId}/confirm-return`, {
     method: 'PUT',
-    headers: getHeaders(userId)
+    headers: getHeaders(userId),
+    body: JSON.stringify({
+      keyReturned
+    })
   });
   return response.json();
 };
 
 // Reject a pending return (Owner only)
 // Reverts the borrowing to ACTIVE — the borrower keeps the vehicle and
-// must coordinate/re-initiate the return later.
-export const rejectReturn = async (userId, borrowingId, reason = null) => {
+// must coordinate/re-initiate the return later. keyReturned here is the
+// owner's own observation, recorded even though the return is rejected.
+export const rejectReturn = async (userId, borrowingId, reason = null, keyReturned = null) => {
   const response = await fetch(`${BORROWING_URL}/${borrowingId}/reject-return`, {
     method: 'PUT',
     headers: getHeaders(userId),
     body: JSON.stringify({
-      rejectionReason: reason
+      rejectionReason: reason,
+      keyReturned
     })
   });
   return response.json();
@@ -988,6 +996,9 @@ const MyVehicleBorrowings = ({ userId }) => {
   const [actionLoading, setActionLoading] = useState(null);
   const [rejectModal, setRejectModal] = useState({ open: false, borrowingId: null });
   const [rejectReason, setRejectReason] = useState('');
+  // Owner's own "was the key handed back?" observation per borrowing,
+  // captured independently of borrowing.keyReturned (the borrower's claim).
+  const [keyReturnedInputs, setKeyReturnedInputs] = useState({});
 
   useEffect(() => {
     fetchVehicleBorrowings();
@@ -1012,7 +1023,8 @@ const MyVehicleBorrowings = ({ userId }) => {
   const handleConfirmReturn = async (borrowingId) => {
     setActionLoading(borrowingId);
     try {
-      const response = await confirmReturn(userId, borrowingId);
+      const keyReturned = keyReturnedInputs[borrowingId] ?? null;
+      const response = await confirmReturn(userId, borrowingId, keyReturned);
       if (response.status === 'success') {
         fetchVehicleBorrowings();
       } else {
@@ -1034,7 +1046,8 @@ const MyVehicleBorrowings = ({ userId }) => {
     const { borrowingId } = rejectModal;
     setActionLoading(borrowingId);
     try {
-      const response = await rejectReturn(userId, borrowingId, rejectReason);
+      const keyReturned = keyReturnedInputs[borrowingId] ?? null;
+      const response = await rejectReturn(userId, borrowingId, rejectReason, keyReturned);
       if (response.status === 'success') {
         setRejectModal({ open: false, borrowingId: null });
         fetchVehicleBorrowings();
@@ -1046,6 +1059,10 @@ const MyVehicleBorrowings = ({ userId }) => {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const setKeyReturnedInput = (borrowingId, value) => {
+    setKeyReturnedInputs(prev => ({ ...prev, [borrowingId]: value }));
   };
 
   const formatDateTime = (dateString) => {
@@ -1092,7 +1109,37 @@ const MyVehicleBorrowings = ({ userId }) => {
             )}
 
             {borrowing.keyReturned !== null && borrowing.keyReturned !== undefined && (
-              <p><strong>Key Returned:</strong> {borrowing.keyReturned ? 'Yes' : 'No'}</p>
+              <p><strong>Borrower says key returned:</strong> {borrowing.keyReturned ? 'Yes' : 'No'}</p>
+            )}
+
+            {borrowing.keyReturnedConfirmedByOwner !== null && borrowing.keyReturnedConfirmedByOwner !== undefined && (
+              <p><strong>You confirmed key returned:</strong> {borrowing.keyReturnedConfirmedByOwner ? 'Yes' : 'No'}</p>
+            )}
+
+            {borrowing.status === BORROWING_STATUS.RETURN_INITIATED && !borrowing.returnConfirmedByOwner && (
+              <div className="key-returned-input">
+                <label>Was the key physically returned to you?</label>
+                <div className="radio-group">
+                  <label>
+                    <input
+                      type="radio"
+                      name={`keyReturned-${borrowing.id}`}
+                      checked={keyReturnedInputs[borrowing.id] === true}
+                      onChange={() => setKeyReturnedInput(borrowing.id, true)}
+                    />
+                    Yes
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name={`keyReturned-${borrowing.id}`}
+                      checked={keyReturnedInputs[borrowing.id] === false}
+                      onChange={() => setKeyReturnedInput(borrowing.id, false)}
+                    />
+                    No
+                  </label>
+                </div>
+              </div>
             )}
           </div>
 
@@ -1563,6 +1610,13 @@ borrowing requests, but nothing used to force the owner to act. Now:
 - Rejecting does **not** introduce a new status — the borrowing simply
   reverts to `ACTIVE` with `returnRejectionReason` populated, and the
   borrower is notified that the vehicle remains with them.
+- `keyReturned` (set by the borrower at `/return`) is **not** validated
+  automatically — it's only ever what the borrower claims. To actually
+  check it, the owner must submit their own `keyReturned` value in the
+  body of `/confirm-return` or `/reject-return`, which is stored
+  separately as `keyReturnedConfirmedByOwner`. The two fields are
+  intentionally independent so the owner's observation can never be
+  silently overwritten by (or confused with) the borrower's claim.
 
 ### Borrower-to-Borrower Transfer Flow
 Owner is notified on every transition but does NOT approve. Chain length
@@ -1669,7 +1723,8 @@ Guards enforced server-side:
   "borrowingPurpose": "Weekend trip",
   "returnNotes": null,
   "rejectionReason": null,
-  "keyReturned": null,           // set by borrower at /return; null = not indicated, true/false = explicit
+  "keyReturned": null,                     // borrower's own claim, set at /return; null = not indicated
+  "keyReturnedConfirmedByOwner": null,     // owner's own observation, set at /confirm-return or /reject-return; independent of the borrower's claim above
   "returnRejectionReason": null, // set only when the owner rejects a return via /reject-return
   "returnInitiatedAt": null,     // timestamp of the current RETURN_INITIATED cycle; null once resolved
   "createdAt": "2024-01-14T15:30:00",

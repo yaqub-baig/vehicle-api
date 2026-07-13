@@ -78,6 +78,9 @@ public class VehicleBorrowing {
     @Column(name = "key_returned")
     private Boolean keyReturned;
 
+    @Column(name = "key_returned_confirmed_by_owner")
+    private Boolean keyReturnedConfirmedByOwner;
+
     @Column(name = "return_rejection_reason", length = 500)
     private String returnRejectionReason;
 

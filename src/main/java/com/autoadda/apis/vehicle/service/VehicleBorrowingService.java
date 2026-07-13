@@ -3,6 +3,7 @@ package com.autoadda.apis.vehicle.service;
 import com.autoadda.apis.vehicle.request.BorrowingRejectionRequest;
 import com.autoadda.apis.vehicle.request.BorrowingReturnRequest;
 import com.autoadda.apis.vehicle.request.BorrowingTransferRequest;
+import com.autoadda.apis.vehicle.request.ConfirmReturnRequest;
 import com.autoadda.apis.vehicle.request.OwnerInitiatedBorrowingRequest;
 import com.autoadda.apis.vehicle.request.TransferRejectionRequest;
 import com.autoadda.apis.vehicle.request.VehicleBorrowingRequest;
@@ -26,7 +27,7 @@ public interface VehicleBorrowingService {
 
     GenericResponse initiateReturn(Long borrowingId, Integer borrowerId, BorrowingReturnRequest request);
 
-    GenericResponse confirmReturn(Long borrowingId, Integer userId);
+    GenericResponse confirmReturn(Long borrowingId, Integer userId, ConfirmReturnRequest request);
 
     GenericResponse rejectReturn(Long borrowingId, Integer ownerId, BorrowingRejectionRequest request);
 

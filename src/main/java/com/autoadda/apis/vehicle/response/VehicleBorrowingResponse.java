@@ -36,6 +36,7 @@ public class VehicleBorrowingResponse {
     private String returnNotes;
     private String rejectionReason;
     private Boolean keyReturned;
+    private Boolean keyReturnedConfirmedByOwner;
     private String returnRejectionReason;
     private LocalDateTime returnInitiatedAt;
     private LocalDateTime createdAt;

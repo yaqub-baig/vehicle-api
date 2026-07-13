@@ -16,6 +16,7 @@ import com.autoadda.apis.vehicle.clients.AuthClient;
 import com.autoadda.apis.vehicle.request.BorrowingRejectionRequest;
 import com.autoadda.apis.vehicle.request.BorrowingReturnRequest;
 import com.autoadda.apis.vehicle.request.BorrowingTransferRequest;
+import com.autoadda.apis.vehicle.request.ConfirmReturnRequest;
 import com.autoadda.apis.vehicle.request.OwnerInitiatedBorrowingRequest;
 import com.autoadda.apis.vehicle.request.TransferRejectionRequest;
 import com.autoadda.apis.vehicle.request.VehicleBorrowingRequest;
@@ -321,6 +322,7 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
         borrowing.setReturnInitiatedAt(LocalDateTime.now());
         borrowing.setReturnRejectionReason(null);
         borrowing.setReturnConfirmedByOwner(false);
+        borrowing.setKeyReturnedConfirmedByOwner(null);
         VehicleBorrowing savedBorrowing = borrowingRepository.save(borrowing);
 
         log.info("Return initiated for borrowing {} by borrower {}", borrowingId, borrowerId);
@@ -338,7 +340,7 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
 
     @Override
     @Transactional
-    public GenericResponse confirmReturn(Long borrowingId, Integer userId) {
+    public GenericResponse confirmReturn(Long borrowingId, Integer userId, ConfirmReturnRequest request) {
         log.info("Confirming return for borrowing {} by user {}", borrowingId, userId);
 
         Optional<VehicleBorrowing> borrowingOpt = borrowingRepository.findById(borrowingId);
@@ -379,6 +381,9 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                         .build();
             }
             borrowing.setReturnConfirmedByOwner(true);
+            if (request != null && request.getKeyReturned() != null) {
+                borrowing.setKeyReturnedConfirmedByOwner(request.getKeyReturned());
+            }
             log.info("Return confirmed by owner {} for borrowing {}", userId, borrowingId);
         } else {
             return GenericResponse.builder()
@@ -449,6 +454,9 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
         borrowing.setStatus(BorrowingStatus.ACTIVE);
         if (request != null) {
             borrowing.setReturnRejectionReason(request.getRejectionReason());
+            if (request.getKeyReturned() != null) {
+                borrowing.setKeyReturnedConfirmedByOwner(request.getKeyReturned());
+            }
         }
         borrowing.setReturnConfirmedByBorrower(false);
         borrowing.setReturnConfirmedByOwner(false);
