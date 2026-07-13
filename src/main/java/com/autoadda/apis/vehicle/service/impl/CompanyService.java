@@ -3,6 +3,7 @@ package com.autoadda.apis.vehicle.service.impl;
 import com.autoadda.apis.vehicle.clients.AuthClient;
 import com.autoadda.apis.vehicle.dao.CompanyRepository;
 import com.autoadda.apis.vehicle.entity.Company;
+import com.autoadda.apis.vehicle.exception.ConflictException;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.mapper.CompanyMapper;
 import com.autoadda.apis.vehicle.request.CompanyRequest;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -28,6 +30,7 @@ public class CompanyService {
     @Transactional
     public GenericResponse createCompany(CompanyRequest companyRequest) {
         validateTradeLicense ( companyRequest );
+        validateOwnerHasNoCompany ( companyRequest.getCompanyOwnerId ( ) );
         Company company = companyMapper.toEntity ( companyRequest );
         Company company1 = companyRepository.save ( company );
         identityClient.updateRole ( company1.getCompanyOwnerId ( ), ERole.COMPANY_OWNER );
@@ -43,6 +46,14 @@ public class CompanyService {
         companyRepository.findByTradeLicenseNumber ( companyRequest.getTradeLicenseNumber ( ) ).ifPresent ( company -> {
             throw new ResourceNotFoundException ( "Trade License Number already exists" );
         } );
+    }
+
+    private void validateOwnerHasNoCompany(Integer companyOwnerId) {
+        boolean hasActiveCompany = companyRepository.findByCompanyOwnerId ( companyOwnerId ).stream ( )
+                .anyMatch ( Company::getIsActive );
+        if ( hasActiveCompany ) {
+            throw new ConflictException ( "Owner already has a registered company" );
+        }
     }
 
 
@@ -103,7 +114,17 @@ public class CompanyService {
     }
 
     public GenericResponse getCompanyByOwnerId(Integer id) {
-        Company byId = companyRepository.findByCompanyOwnerId ( id ).orElseThrow ( () -> new ResourceNotFoundException ( COMPANY_NOT_FOUND ) );
+        List<Company> companies = companyRepository.findByCompanyOwnerId ( id );
+        if ( companies.isEmpty ( ) ) {
+            throw new ResourceNotFoundException ( COMPANY_NOT_FOUND );
+        }
+        if ( companies.size ( ) > 1 ) {
+            log.warn ( "Owner {} has {} company records, expected at most 1", id, companies.size ( ) );
+        }
+        Company byId = companies.stream ( )
+                .filter ( Company::getIsActive )
+                .max ( Comparator.comparing ( Company::getId ) )
+                .orElseGet ( () -> companies.stream ( ).max ( Comparator.comparing ( Company::getId ) ).orElseThrow ( ) );
         if (Boolean.FALSE.equals( byId.getIsActive ( )) ) {
             return GenericResponse.builder ( ).code ( "200" ).status ( SUCCESS ).message ( "Company is not Active" ).build ( );
         }

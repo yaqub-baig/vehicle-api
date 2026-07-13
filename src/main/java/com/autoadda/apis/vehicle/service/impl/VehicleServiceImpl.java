@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -211,9 +212,9 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     public GenericResponse getCompanyVehiclesByOwnerId(Integer ownerId) {
-        Optional<Company> companyOptional = companyRepository.findByCompanyOwnerId(ownerId);
+        List<Company> companies = companyRepository.findByCompanyOwnerId(ownerId);
 
-        if (companyOptional.isEmpty()) {
+        if (companies.isEmpty()) {
             return GenericResponse.builder()
                     .body(new ArrayList<>())
                     .code("200")
@@ -221,8 +222,14 @@ public class VehicleServiceImpl implements VehicleService {
                     .status(SUCCESS)
                     .build();
         }
+        if (companies.size() > 1) {
+            log.warn("Owner {} has {} company records, expected at most 1", ownerId, companies.size());
+        }
 
-        Company company = companyOptional.get();
+        Company company = companies.stream()
+                .filter(Company::getIsActive)
+                .max(Comparator.comparing(Company::getId))
+                .orElseGet(() -> companies.stream().max(Comparator.comparing(Company::getId)).orElseThrow());
         List<VehicleDetails> companyVehicles = vehicleRepository.findByCompanyId(company.getId());
 
         List<VehicleDetailResponse> vehicleResponses = companyVehicles.stream()
