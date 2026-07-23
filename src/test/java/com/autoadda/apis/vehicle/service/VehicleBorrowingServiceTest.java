@@ -375,6 +375,35 @@ class VehicleBorrowingServiceTest {
     }
 
     @Test
+    void quickReturn_borrowerNotTrusted_shouldReturn403() {
+        VehicleBorrowing borrowing = activeBorrowing();
+        when(borrowingRepository.findById(100L)).thenReturn(Optional.of(borrowing));
+        when(trustedBorrowerRepository.existsByOwnerIdAndBorrowerIdAndIsDeletedFalse(OWNER_ID, BORROWER_ID))
+                .thenReturn(false);
+
+        GenericResponse response = service.quickReturn(100L, BORROWER_ID, null);
+
+        assertEquals("error", response.getStatus());
+        assertEquals("403", response.getCode());
+        verify(borrowingRepository, never()).save(any());
+    }
+
+    @Test
+    void quickReturn_ownerAlwaysAllowed_evenWhenBorrowerNotTrusted() {
+        VehicleBorrowing borrowing = activeBorrowing();
+        when(borrowingRepository.findById(100L)).thenReturn(Optional.of(borrowing));
+        when(trustedBorrowerRepository.existsByOwnerIdAndBorrowerIdAndIsDeletedFalse(OWNER_ID, BORROWER_ID))
+                .thenReturn(false);
+
+        GenericResponse response = service.quickReturn(100L, OWNER_ID, null);
+
+        assertEquals("success", response.getStatus());
+        assertEquals(BorrowingStatus.RETURNED, borrowing.getStatus());
+        verify(trustedBorrowerRepository, never())
+                .existsByOwnerIdAndBorrowerIdAndIsDeletedFalse(OWNER_ID, OWNER_ID);
+    }
+
+    @Test
     void quickReturn_withOptionalFields_shouldApplyThem() {
         VehicleBorrowing borrowing = activeBorrowing();
         when(borrowingRepository.findById(100L)).thenReturn(Optional.of(borrowing));

@@ -190,10 +190,19 @@ export const quickBorrow = async (userId, data) => {
   return response.json();
 };
 
-// Quick-return: either the borrower or the owner can call this to close
-// out the borrowing in one call — no second-party confirmation needed.
-// Works from ACTIVE, and also "rescues" a borrowing already stuck in
-// RETURN_INITIATED waiting on the slow-path owner confirmation.
+// Quick-return: closes out the borrowing in one call — no second-party
+// confirmation needed. Works from ACTIVE, and also "rescues" a borrowing
+// already stuck in RETURN_INITIATED waiting on the slow-path owner
+// confirmation.
+// - Called by the OWNER: always allowed (they own the vehicle and already
+//   have full authority over it — no trust check).
+// - Called by the BORROWER: only allowed if the owner has that borrower on
+//   their trusted borrower list (see TRUSTED BORROWER ACTIONS below).
+//   Otherwise 403: "You are not a trusted borrower for this owner's
+//   vehicles. Ask the owner to add you as a trusted borrower, or use the
+//   standard return + confirm-return flow instead." A borrower who isn't
+//   trusted can still fall back to initiateReturn() + wait for the owner's
+//   confirmReturn().
 export const quickReturn = async (userId, borrowingId, data = {}) => {
   const response = await fetch(`${BORROWING_URL}/${borrowingId}/quick-return`, {
     method: 'PUT',
@@ -1710,17 +1719,19 @@ const QuickBorrowButton = ({ vehicleId, userId, borrowerId = null, onSuccess }) 
 export default QuickBorrowButton;
 ```
 
-### 11. Quick-Return Button (Either Party)
+### 11. Quick-Return Button (Owner Always, Borrower Only If Trusted)
 
 ```jsx
 // src/components/borrowing/QuickReturnButton.jsx
-// Shown for any borrowing with status ACTIVE or RETURN_INITIATED. Either
-// the borrower or the owner can call this — it closes the borrowing out
-// immediately, with no second-party confirmation required.
+// Shown for any borrowing with status ACTIVE or RETURN_INITIATED. The
+// owner can always call this. The borrower can only call it successfully
+// if the owner has them on their trusted borrower list — a 403 means the
+// borrower should fall back to initiateReturn() and wait for the owner's
+// confirmReturn() instead.
 import React, { useState } from 'react';
 import { quickReturn } from '../../services/vehicleBorrowingService';
 
-const QuickReturnButton = ({ borrowingId, userId, onSuccess }) => {
+const QuickReturnButton = ({ borrowingId, userId, onSuccess, onNotTrusted }) => {
   const [loading, setLoading] = useState(false);
   const [keyReturned, setKeyReturned] = useState(null);
   const [error, setError] = useState(null);
@@ -1732,6 +1743,9 @@ const QuickReturnButton = ({ borrowingId, userId, onSuccess }) => {
       const response = await quickReturn(userId, borrowingId, { keyReturned });
       if (response.status === 'success') {
         onSuccess(response.body); // status is already RETURNED
+      } else if (response.code === '403' && onNotTrusted) {
+        // Not on the owner's trusted list — offer the standard return flow instead.
+        onNotTrusted(response.message);
       } else {
         setError(response.message);
       }
@@ -2025,12 +2039,22 @@ Quick-Borrow — one call straight to ACTIVE:
          added this borrower to their trusted list beforehand — see
          Trusted Borrowers below)
 
-Quick-Return — one call straight to RETURNED, from either party:
+Quick-Return — one call straight to RETURNED:
 
-  Borrower OR Owner calls PUT /{id}/quick-return
+  Owner calls PUT /{id}/quick-return
+        ↓ always allowed (they own the vehicle, no trust check)
         ↓ works from ACTIVE, or from RETURN_INITIATED (rescues a
           borrowing already stuck waiting on the slow-path owner
-          confirmation)
+          confirmation, even if the borrower was never trusted)
+
+  OR Borrower calls PUT /{id}/quick-return
+        ↓ REQUIRES the borrower to be on the owner's trusted borrower
+          list — otherwise 403 "You are not a trusted borrower for this
+          owner's vehicles. Ask the owner to add you as a trusted
+          borrower, or use the standard return + confirm-return flow
+          instead."
+
+  Either way, on success:
         Borrowing.status = RETURNED, actualReturnTime = now
         returnConfirmedByBorrower = true, returnConfirmedByOwner = true
         (no second-party confirmation, no 30-minute reminder involved)
@@ -2045,31 +2069,46 @@ When to use which:
   driver) where that ceremony is pure friction.
 - The two paths interoperate freely: a borrowing started via the slow path
   can be closed out via `quick-return` (e.g. to rescue one stuck in
-  `RETURN_INITIATED`), and a borrowing started via `quick-borrow` can still
-  be ended via the slow `/return` + `/confirm-return` pair if desired.
+  `RETURN_INITIATED`) — the owner can always do this regardless of trust
+  status, and a trusted borrower can too. A borrowing started via
+  `quick-borrow` can still be ended via the slow `/return` +
+  `/confirm-return` pair if desired.
+- If a borrower isn't trusted, they aren't locked out of returning the
+  vehicle — they just use `initiateReturn()` and wait for the owner's
+  `confirmReturn()` instead of `quickReturn()`.
 
-### Trusted Borrowers (Gate on Self-Request Quick-Borrow)
+### Trusted Borrowers (Gate on Self-Request Quick-Borrow AND Borrower-Side Quick-Return)
 
 Without this list, self-request quick-borrow would let *any* authenticated
-user instantly claim *any* vehicle with zero owner involvement — far more
-than just skipping ceremony. The trusted borrower list closes that gap:
+user instantly claim *any* vehicle with zero owner involvement, and any
+borrower could unilaterally mark any active borrowing as returned with no
+owner confirmation — far more than just skipping ceremony. The trusted
+borrower list closes both gaps:
 
 - Scope is **per owner**, not per vehicle — one entry covers every vehicle
   that owner has. There's no per-vehicle trust list.
-- Only the **self-request** branch of quick-borrow checks this list. The
+- **Quick-borrow**: only the **self-request** branch checks this list. The
   **owner-initiated** branch (owner passes `borrowerId` explicitly) never
   needs it — the owner picking the borrower themselves is inherently
   trusted for that instance.
+- **Quick-return**: only the **borrower's** call checks this list. The
+  **owner's** call never needs it — the owner asserting "this is returned"
+  about their own vehicle is always honored, which also means the owner
+  can still rescue a borrowing stuck in `RETURN_INITIATED` even when the
+  borrower isn't trusted.
 - Managed via `POST /trusted-borrowers`, `DELETE /trusted-borrowers/{borrowerId}`,
   `GET /trusted-borrowers` (all owner-only, keyed off the `X-Auto-Adda-Id`
   header — there's no `ownerId` path/body parameter, the caller IS the owner).
 - Removing and re-adding the same borrower is safe (idempotent) — the
   server soft-deletes and revives the same record rather than erroring.
-- A user who isn't yet trusted can still borrow the normal way
-  (`createBorrowingRequest` → owner approves → `/start`), or the owner can
-  quick-borrow-assign it to them directly (owner-initiated branch, no trust
-  list needed) — quick-borrow self-request is just the *fastest* path, not
-  the only path.
+- A user who isn't yet trusted can still borrow and return the normal way
+  (`createBorrowingRequest` → owner approves → `/start` → `/return` →
+  `/confirm-return`), or the owner can quick-borrow-assign a vehicle to
+  them directly (owner-initiated branch, no trust list needed) while still
+  requiring the slow return handshake — trust status can differ for
+  borrowing vs. returning the *same* borrowing if the owner revokes/adds
+  trust mid-loan, since both checks are evaluated live at call time, not
+  cached from when the borrowing started.
 
 ---
 
@@ -2080,7 +2119,7 @@ than just skipping ceremony. The trusted borrower list closes that gap:
 | POST | `/vehicle-borrowings` | Create borrowing request | X-Auto-Adda-Id |
 | POST | `/vehicle-borrowings/assign` | Owner assigns vehicle directly | X-Auto-Adda-Id |
 | POST | `/vehicle-borrowings/quick-borrow` | Quick-borrow: owner-assign or self-request, straight to ACTIVE | X-Auto-Adda-Id |
-| PUT | `/vehicle-borrowings/{id}/quick-return` | Quick-return: either party, straight to RETURNED, no second confirmation | X-Auto-Adda-Id |
+| PUT | `/vehicle-borrowings/{id}/quick-return` | Quick-return: owner always allowed, borrower only if trusted, straight to RETURNED, no second confirmation | X-Auto-Adda-Id |
 | GET | `/vehicle-borrowings/search-user?userId={id}` | Search user by ID | - |
 | PUT | `/vehicle-borrowings/{id}/approve` | Approve request | X-Auto-Adda-Id |
 | PUT | `/vehicle-borrowings/{id}/reject` | Reject request | X-Auto-Adda-Id |

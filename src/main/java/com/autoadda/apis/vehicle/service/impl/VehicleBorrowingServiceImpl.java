@@ -917,6 +917,21 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                     .build();
         }
 
+        // The owner can always quick-return their own vehicle's borrowing. The borrower
+        // can only self-serve a quick-return (no owner confirmation) when the owner has
+        // placed them on the trusted borrower list.
+        boolean callerIsOwner = callerId.equals(borrowing.getOwnerId());
+        if (!callerIsOwner && !trustedBorrowerRepository.existsByOwnerIdAndBorrowerIdAndIsDeletedFalse(
+                borrowing.getOwnerId(), callerId)) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("403")
+                    .message("You are not a trusted borrower for this owner's vehicles. "
+                            + "Ask the owner to add you as a trusted borrower, or use the standard "
+                            + "return + confirm-return flow instead.")
+                    .build();
+        }
+
         if (borrowing.getStatus() != BorrowingStatus.ACTIVE
                 && borrowing.getStatus() != BorrowingStatus.RETURN_INITIATED) {
             return GenericResponse.builder()
