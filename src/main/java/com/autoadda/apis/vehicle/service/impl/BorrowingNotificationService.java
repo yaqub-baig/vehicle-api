@@ -201,6 +201,24 @@ public class BorrowingNotificationService {
     }
 
     @Async
+    public void sendQuickBorrowNotification(VehicleBorrowing borrowing, VehicleDetails vehicle) {
+        try {
+            log.info("Sending quick-borrow notifications for borrowing ID: {}", borrowing.getId());
+
+            UserResponse borrower = authClient.getUser(borrowing.getBorrowerId());
+            UserResponse owner = authClient.getUser(borrowing.getOwnerId());
+
+            sendQuickBorrowToBorrower(borrowing, vehicle, borrower);
+            sendQuickBorrowToOwner(borrowing, vehicle, borrower, owner);
+
+            log.info("Quick-borrow notifications sent for borrowing ID: {}", borrowing.getId());
+        } catch (Exception e) {
+            log.error("Failed to send quick-borrow notifications for borrowing {}: {}",
+                    borrowing.getId(), e.getMessage(), e);
+        }
+    }
+
+    @Async
     public void sendTransferRequestedNotification(VehicleBorrowing borrowing, BorrowingTransfer transfer,
                                                   VehicleDetails vehicle) {
         try {
@@ -318,6 +336,119 @@ public class BorrowingNotificationService {
             }
         } catch (Exception e) {
             log.error("Failed to send assignment to borrower {}: {}", borrower.getId(), e.getMessage());
+        }
+    }
+
+    private void sendQuickBorrowToBorrower(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                            UserResponse borrower) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(borrower.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Borrowing Active - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = String.format("""
+                        Dear %s,
+
+                        Your borrowing of %s %s (%s) is now active - no approval step was needed.
+
+                        BORROWING DETAILS:
+                        - Borrowing ID: %d
+                        - Expected Return: %s
+
+                        Best regards,
+                        AutoAdda Team""",
+                        borrower.getName(),
+                        vehicle.getBrand(), vehicle.getModel(),
+                        vehicle.getNumber() != null ? vehicle.getNumber() : "N/A",
+                        borrowing.getId(),
+                        borrowing.getExpectedReturnTime());
+
+                authClient.sendEmail(borrower.getId(), EmailRequest.builder()
+                        .to(borrower.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(borrower.getId()),
+                        CUSTOMER,
+                        "Borrowing Active",
+                        String.format("Your borrowing of %s %s is now active. No approval step was needed.",
+                                vehicle.getBrand(), vehicle.getModel()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: Your borrowing of %s %s is now active.",
+                        vehicle.getBrand(), vehicle.getModel());
+                authClient.sendSms(new SmsRequest(borrower.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send quick-borrow notification to borrower {}: {}", borrower.getId(), e.getMessage());
+        }
+    }
+
+    private void sendQuickBorrowToOwner(VehicleBorrowing borrowing, VehicleDetails vehicle,
+                                         UserResponse borrower, UserResponse owner) {
+        try {
+            ResponseEntity<CommunicationPreference> prefsResponse =
+                    authClient.getPreferencesByCustomerId1(owner.getId());
+            CommunicationPreference prefs = prefsResponse.getBody();
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getEmailOnServiceUpdates())) {
+                String subject = String.format("Vehicle Borrowing Active - %s %s",
+                        vehicle.getBrand(), vehicle.getModel());
+                String body = String.format("""
+                        Dear %s,
+
+                        Your %s %s (%s) is now on loan to %s - the borrowing is active immediately, no approval step was needed.
+
+                        BORROWING DETAILS:
+                        - Borrowing ID: %d
+                        - Borrower: %s
+                        - Expected Return: %s
+
+                        Best regards,
+                        AutoAdda Team""",
+                        owner.getName(),
+                        vehicle.getBrand(), vehicle.getModel(),
+                        vehicle.getNumber() != null ? vehicle.getNumber() : "N/A",
+                        borrower.getName(),
+                        borrowing.getId(),
+                        borrower.getName(),
+                        borrowing.getExpectedReturnTime());
+
+                authClient.sendEmail(owner.getId(), EmailRequest.builder()
+                        .to(owner.getEmail())
+                        .subject(subject)
+                        .body(body)
+                        .build());
+            }
+
+            if (prefs == null || Boolean.TRUE.equals(prefs.getWebpushOnServiceUpdates())) {
+                authClient.sendNotification(new SendNotificationRequest(
+                        String.valueOf(owner.getId()),
+                        CUSTOMER,
+                        "Vehicle Borrowing Active",
+                        String.format("%s is now borrowing your %s %s. The borrowing is already active.",
+                                borrower.getName(), vehicle.getBrand(), vehicle.getModel()),
+                        VEHICLE_BORROWINGS + borrowing.getId()
+                ));
+            }
+
+            if (prefs != null && Boolean.TRUE.equals(prefs.getSmsOnServiceUpdates())) {
+                String smsMessage = String.format("AutoAdda: %s is now borrowing your %s %s (active).",
+                        borrower.getName(), vehicle.getBrand(), vehicle.getModel());
+                authClient.sendSms(new SmsRequest(owner.getMobileNumber(), smsMessage));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send quick-borrow notification to owner {}: {}", owner.getId(), e.getMessage());
         }
     }
 

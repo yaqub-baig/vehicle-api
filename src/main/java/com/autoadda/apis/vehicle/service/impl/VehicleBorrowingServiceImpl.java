@@ -3,6 +3,7 @@ package com.autoadda.apis.vehicle.service.impl;
 import com.autoadda.apis.vehicle.clients.GarageClient;
 import com.autoadda.apis.vehicle.dao.BorrowingTransferRepository;
 import com.autoadda.apis.vehicle.dao.MediaFileRepository;
+import com.autoadda.apis.vehicle.dao.TrustedBorrowerRepository;
 import com.autoadda.apis.vehicle.dao.VehicleBorrowingRepository;
 import com.autoadda.apis.vehicle.dao.VehicleDetailsRepository;
 import com.autoadda.apis.vehicle.entity.BorrowingTransfer;
@@ -18,6 +19,8 @@ import com.autoadda.apis.vehicle.request.BorrowingReturnRequest;
 import com.autoadda.apis.vehicle.request.BorrowingTransferRequest;
 import com.autoadda.apis.vehicle.request.ConfirmReturnRequest;
 import com.autoadda.apis.vehicle.request.OwnerInitiatedBorrowingRequest;
+import com.autoadda.apis.vehicle.request.QuickBorrowRequest;
+import com.autoadda.apis.vehicle.request.QuickReturnRequest;
 import com.autoadda.apis.vehicle.request.TransferRejectionRequest;
 import com.autoadda.apis.vehicle.request.VehicleBorrowingRequest;
 import com.autoadda.apis.vehicle.response.UserResponse;
@@ -59,6 +62,7 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
     private final AuthClient authClient;
     private final VehicleBorrowingMapper mapper;
     private final BorrowingNotificationService notificationService;
+    private final TrustedBorrowerRepository trustedBorrowerRepository;
 
     @Override
     @Transactional
@@ -760,6 +764,209 @@ public class VehicleBorrowingServiceImpl implements VehicleBorrowingService {
                 .build();
     }
 
+    @Override
+    @Transactional
+    public GenericResponse quickBorrow(QuickBorrowRequest request, Integer callerId) {
+        log.info("Quick-borrow requested for vehicle {} by caller {}", request.getVehicleId(), callerId);
+
+        Optional<VehicleDetails> vehicleOpt = vehicleRepository.findById(request.getVehicleId());
+        if (vehicleOpt.isEmpty()) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("404")
+                    .message("Vehicle not found")
+                    .build();
+        }
+
+        VehicleDetails vehicle = vehicleOpt.get();
+        Integer borrowerId;
+        Integer ownerId;
+
+        if (vehicle.getCustomerId().equals(callerId)) {
+            // Owner branch: owner is assigning the vehicle to a specific borrower.
+            if (request.getBorrowerId() == null) {
+                return GenericResponse.builder()
+                        .status(ERROR)
+                        .code("400")
+                        .message("Borrower ID is required when assigning as owner")
+                        .build();
+            }
+            borrowerId = request.getBorrowerId();
+            ownerId = callerId;
+
+            try {
+                UserResponse borrower = authClient.getUser(borrowerId);
+                if (borrower == null) {
+                    return GenericResponse.builder()
+                            .status(ERROR)
+                            .code("404")
+                            .message("Borrower not found")
+                            .build();
+                }
+            } catch (Exception e) {
+                log.error("Error fetching borrower {}: {}", borrowerId, e.getMessage());
+                return GenericResponse.builder()
+                        .status(ERROR)
+                        .code("404")
+                        .message("Borrower not found")
+                        .build();
+            }
+        } else {
+            // Self-request branch: caller is borrowing for themselves, auto-approved
+            // only if the owner has explicitly trusted this caller beforehand.
+            if (request.getBorrowerId() != null && !request.getBorrowerId().equals(callerId)) {
+                log.info("Ignoring borrowerId {} in self-request quick-borrow; forcing caller {}",
+                        request.getBorrowerId(), callerId);
+            }
+            borrowerId = callerId;
+            ownerId = vehicle.getCustomerId();
+
+            if (!trustedBorrowerRepository.existsByOwnerIdAndBorrowerIdAndIsDeletedFalse(ownerId, borrowerId)) {
+                return GenericResponse.builder()
+                        .status(ERROR)
+                        .code("403")
+                        .message("You are not a trusted borrower for this owner's vehicles. "
+                                + "Ask the owner to add you as a trusted borrower first.")
+                        .build();
+            }
+        }
+
+        if (borrowingRepository.hasActiveBorrowing(request.getVehicleId())) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("400")
+                    .message("Vehicle is already borrowed or has a pending borrowing request")
+                    .build();
+        }
+
+        if (!isVehicleNotInGarage(request.getVehicleId())) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("400")
+                    .message("Vehicle is currently in service at a garage")
+                    .build();
+        }
+
+        LocalDateTime expectedReturnTime = request.getExpectedReturnTime() != null
+                ? request.getExpectedReturnTime()
+                : LocalDateTime.now().plusHours(24);
+
+        if (expectedReturnTime.isBefore(LocalDateTime.now())) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("400")
+                    .message("Expected return time must be in the future")
+                    .build();
+        }
+
+        List<MediaFile> borrowingImages = resolveMediaFiles(request.getBorrowingImageIds());
+
+        VehicleBorrowing borrowing = VehicleBorrowing.builder()
+                .borrowerId(borrowerId)
+                .originalBorrowerId(borrowerId)
+                .vehicleId(request.getVehicleId())
+                .ownerId(ownerId)
+                .borrowingTime(LocalDateTime.now())
+                .expectedReturnTime(expectedReturnTime)
+                .borrowingPurpose(request.getBorrowingPurpose())
+                .status(BorrowingStatus.ACTIVE)
+                .returnConfirmedByBorrower(false)
+                .returnConfirmedByOwner(false)
+                .isDeleted(false)
+                .build();
+
+        if (!borrowingImages.isEmpty()) {
+            borrowing.setBorrowingImages(borrowingImages);
+        }
+
+        VehicleBorrowing savedBorrowing = borrowingRepository.save(borrowing);
+
+        log.info("Quick-borrow created with ID: {} in ACTIVE status", savedBorrowing.getId());
+
+        notificationService.sendQuickBorrowNotification(savedBorrowing, vehicle);
+
+        return GenericResponse.builder()
+                .status(SUCCESS)
+                .code("201")
+                .message("Vehicle borrowing started immediately (quick-borrow).")
+                .body(mapper.toResponse(savedBorrowing))
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse quickReturn(Long borrowingId, Integer callerId, QuickReturnRequest request) {
+        log.info("Quick-return requested for borrowing {} by caller {}", borrowingId, callerId);
+
+        Optional<VehicleBorrowing> borrowingOpt = borrowingRepository.findById(borrowingId);
+        if (borrowingOpt.isEmpty()) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("404")
+                    .message(BORROWING_NOT_FOUND)
+                    .build();
+        }
+
+        VehicleBorrowing borrowing = borrowingOpt.get();
+
+        if (!callerId.equals(borrowing.getBorrowerId()) && !callerId.equals(borrowing.getOwnerId())) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("403")
+                    .message("You are not authorized to return this borrowing")
+                    .build();
+        }
+
+        if (borrowing.getStatus() != BorrowingStatus.ACTIVE
+                && borrowing.getStatus() != BorrowingStatus.RETURN_INITIATED) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("400")
+                    .message("Only active or return-initiated borrowings can be quick-returned")
+                    .build();
+        }
+
+        if (request != null) {
+            if (request.getReturnNotes() != null) {
+                borrowing.setReturnNotes(request.getReturnNotes());
+            }
+            if (request.getKeyReturned() != null) {
+                borrowing.setKeyReturned(request.getKeyReturned());
+                borrowing.setKeyReturnedConfirmedByOwner(request.getKeyReturned());
+            }
+            List<MediaFile> returnImages = resolveMediaFiles(request.getReturnImageIds());
+            if (!returnImages.isEmpty()) {
+                if (borrowing.getReturnImages() == null) {
+                    borrowing.setReturnImages(new ArrayList<>());
+                }
+                borrowing.getReturnImages().clear();
+                borrowing.getReturnImages().addAll(returnImages);
+            }
+        }
+
+        borrowing.setStatus(BorrowingStatus.RETURNED);
+        borrowing.setActualReturnTime(LocalDateTime.now());
+        borrowing.setReturnConfirmedByBorrower(true);
+        borrowing.setReturnConfirmedByOwner(true);
+        borrowing.setReturnRejectionReason(null);
+        if (borrowing.getReturnInitiatedAt() == null) {
+            borrowing.setReturnInitiatedAt(LocalDateTime.now());
+        }
+
+        VehicleBorrowing savedBorrowing = borrowingRepository.save(borrowing);
+
+        log.info("Quick-return completed for borrowing {} by caller {}", borrowingId, callerId);
+
+        Optional<VehicleDetails> vehicleOpt = vehicleRepository.findById(borrowing.getVehicleId());
+        vehicleOpt.ifPresent(vehicle -> notificationService.sendReturnConfirmedNotification(savedBorrowing, vehicle));
+
+        return GenericResponse.builder()
+                .status(SUCCESS)
+                .code("200")
+                .message("Vehicle return completed successfully (quick-return).")
+                .body(mapper.toResponse(savedBorrowing))
+                .build();
+    }
 
     @Override
     public GenericResponse searchUserById(Integer userId) {

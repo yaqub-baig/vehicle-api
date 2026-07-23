@@ -5,6 +5,8 @@ import com.autoadda.apis.vehicle.request.BorrowingReturnRequest;
 import com.autoadda.apis.vehicle.request.BorrowingTransferRequest;
 import com.autoadda.apis.vehicle.request.ConfirmReturnRequest;
 import com.autoadda.apis.vehicle.request.OwnerInitiatedBorrowingRequest;
+import com.autoadda.apis.vehicle.request.QuickBorrowRequest;
+import com.autoadda.apis.vehicle.request.QuickReturnRequest;
 import com.autoadda.apis.vehicle.request.TransferRejectionRequest;
 import com.autoadda.apis.vehicle.request.VehicleBorrowingRequest;
 import com.autoadda.apis.vehicle.response.GenericResponse;
@@ -44,6 +46,19 @@ public class VehicleBorrowingController {
             @RequestHeader("X-Auto-Adda-Id") String userId) {
         Integer ownerId = Integer.parseInt(userId);
         return borrowingService.createOwnerInitiatedBorrowing(request, ownerId);
+    }
+
+    /**
+     * Quick-borrow: owner assigns a vehicle to a borrower straight to ACTIVE,
+     * or a borrower self-requests a vehicle straight to ACTIVE (auto-approved).
+     * POST /vehicle-borrowings/quick-borrow
+     */
+    @PostMapping("/quick-borrow")
+    public GenericResponse quickBorrow(
+            @RequestBody QuickBorrowRequest request,
+            @RequestHeader("X-Auto-Adda-Id") String userId) {
+        Integer callerId = Integer.parseInt(userId);
+        return borrowingService.quickBorrow(request, callerId);
     }
 
     /**
@@ -116,6 +131,20 @@ public class VehicleBorrowingController {
             @RequestBody(required = false) ConfirmReturnRequest request) {
         Integer confirmerId = Integer.parseInt(userId);
         return borrowingService.confirmReturn(id, confirmerId, request);
+    }
+
+    /**
+     * Quick-return: either party closes out the borrowing in a single call, no
+     * second-party confirmation needed. Works from ACTIVE or RETURN_INITIATED.
+     * PUT /vehicle-borrowings/{id}/quick-return
+     */
+    @PutMapping("/{id}/quick-return")
+    public GenericResponse quickReturn(
+            @PathVariable Long id,
+            @RequestHeader("X-Auto-Adda-Id") String userId,
+            @RequestBody(required = false) QuickReturnRequest request) {
+        Integer callerId = Integer.parseInt(userId);
+        return borrowingService.quickReturn(id, callerId, request);
     }
 
     /**

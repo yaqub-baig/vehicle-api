@@ -5,6 +5,8 @@ import com.autoadda.apis.vehicle.request.BorrowingReturnRequest;
 import com.autoadda.apis.vehicle.request.BorrowingTransferRequest;
 import com.autoadda.apis.vehicle.request.ConfirmReturnRequest;
 import com.autoadda.apis.vehicle.request.OwnerInitiatedBorrowingRequest;
+import com.autoadda.apis.vehicle.request.QuickBorrowRequest;
+import com.autoadda.apis.vehicle.request.QuickReturnRequest;
 import com.autoadda.apis.vehicle.request.TransferRejectionRequest;
 import com.autoadda.apis.vehicle.request.VehicleBorrowingRequest;
 import com.autoadda.apis.vehicle.response.GenericResponse;
@@ -15,7 +17,9 @@ public interface VehicleBorrowingService {
 
     GenericResponse createOwnerInitiatedBorrowing(OwnerInitiatedBorrowingRequest request, Integer ownerId);
 
+    GenericResponse quickBorrow(QuickBorrowRequest request, Integer callerId);
 
+    GenericResponse quickReturn(Long borrowingId, Integer callerId, QuickReturnRequest request);
 
     GenericResponse searchUserById(Integer userId);
 

@@ -157,6 +157,95 @@ export const searchUserById = async (autoAddaId) => {
 };
 
 // ============================================
+// QUICK ACTIONS (Fast Path — Minimal Input)
+// ============================================
+// These bypass the multi-step approve/start and return/confirm-return
+// handshakes entirely. Use them for trusted owner<->borrower relationships
+// where the formal approval dance is unnecessary friction. They are
+// opt-in, additive endpoints — none of the existing slow-path endpoints
+// above changed behavior.
+
+// Quick-borrow: goes straight to ACTIVE in a single call.
+// - Called by the vehicle OWNER: pass data.borrowerId to assign to that user
+//   (no approval wait, no separate /start call).
+// - Called by anyone else: borrowerId is ignored server-side and forced to
+//   the caller — this is a self-request that is auto-approved, but ONLY if
+//   the owner has already added the caller to their trusted borrower list
+//   (see TRUSTED BORROWER ACTIONS below). Otherwise the response is a 403:
+//   "You are not a trusted borrower for this owner's vehicles. Ask the
+//   owner to add you as a trusted borrower first."
+// expectedReturnTime is optional; the server defaults it to now + 24h.
+export const quickBorrow = async (userId, data) => {
+  const response = await fetch(`${BORROWING_URL}/quick-borrow`, {
+    method: 'POST',
+    headers: getHeaders(userId),
+    body: JSON.stringify({
+      vehicleId: data.vehicleId,
+      borrowerId: data.borrowerId || null,
+      expectedReturnTime: data.expectedReturnTime || null,
+      borrowingImageIds: data.borrowingImageIds || null,
+      borrowingPurpose: data.borrowingPurpose || null
+    })
+  });
+  return response.json();
+};
+
+// Quick-return: either the borrower or the owner can call this to close
+// out the borrowing in one call — no second-party confirmation needed.
+// Works from ACTIVE, and also "rescues" a borrowing already stuck in
+// RETURN_INITIATED waiting on the slow-path owner confirmation.
+export const quickReturn = async (userId, borrowingId, data = {}) => {
+  const response = await fetch(`${BORROWING_URL}/${borrowingId}/quick-return`, {
+    method: 'PUT',
+    headers: getHeaders(userId),
+    body: JSON.stringify({
+      returnImageIds: data.returnImageIds || null,
+      returnNotes: data.returnNotes || null,
+      keyReturned: data.keyReturned ?? null
+    })
+  });
+  return response.json();
+};
+
+// ============================================
+// TRUSTED BORROWER ACTIONS (Owner manages who can self-quick-borrow)
+// ============================================
+// A trusted borrower can quick-borrow ANY of the owner's vehicles without
+// the owner approving each request. This is per-OWNER, not per-vehicle —
+// adding someone once covers their whole fleet. Owner-initiated quick-borrow
+// (owner picks the borrowerId themselves) never needs this list; it's only
+// checked for the self-request branch of quick-borrow.
+const TRUSTED_BORROWERS_URL = `${API_BASE_URL}/trusted-borrowers`;
+
+// Add a user to the caller's (owner's) trusted borrower list
+export const addTrustedBorrower = async (ownerId, borrowerId) => {
+  const response = await fetch(TRUSTED_BORROWERS_URL, {
+    method: 'POST',
+    headers: getHeaders(ownerId),
+    body: JSON.stringify({ borrowerId })
+  });
+  return response.json();
+};
+
+// Remove a user from the caller's (owner's) trusted borrower list
+export const removeTrustedBorrower = async (ownerId, borrowerId) => {
+  const response = await fetch(`${TRUSTED_BORROWERS_URL}/${borrowerId}`, {
+    method: 'DELETE',
+    headers: getHeaders(ownerId)
+  });
+  return response.json();
+};
+
+// List the caller's (owner's) trusted borrowers
+export const getTrustedBorrowers = async (ownerId) => {
+  const response = await fetch(TRUSTED_BORROWERS_URL, {
+    method: 'GET',
+    headers: getHeaders(ownerId)
+  });
+  return response.json();
+};
+
+// ============================================
 // SHARED ACTIONS
 // ============================================
 
@@ -1566,6 +1655,269 @@ const VehicleAvailabilityBadge = ({ vehicleId }) => {
 export default VehicleAvailabilityBadge;
 ```
 
+### 10. Quick-Borrow Button (Owner or Self-Request)
+
+```jsx
+// src/components/borrowing/QuickBorrowButton.jsx
+// Pass `borrowerId` only when the caller is the vehicle owner assigning to
+// someone else. Omit it for a self-request — the server forces the
+// borrower to whoever is calling (the `userId` header), ignoring anything
+// else supplied.
+import React, { useState } from 'react';
+import { quickBorrow } from '../../services/vehicleBorrowingService';
+
+const QuickBorrowButton = ({ vehicleId, userId, borrowerId = null, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleQuickBorrow = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await quickBorrow(userId, { vehicleId, borrowerId });
+      if (response.status === 'success') {
+        onSuccess(response.body); // status is already ACTIVE, no /start needed
+      } else if (response.code === '403') {
+        // Self-request path: caller isn't on the owner's trusted list yet.
+        // Fall back to the normal request flow (createBorrowingRequest) or
+        // prompt the user to ask the owner to add them as trusted.
+        setError(response.message);
+      } else {
+        setError(response.message);
+      }
+    } catch (err) {
+      setError('Failed to quick-borrow vehicle');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="quick-borrow">
+      {error && <div className="error-message">{error}</div>}
+      <button onClick={handleQuickBorrow} disabled={loading}>
+        {loading ? 'Starting...' : borrowerId ? 'Assign & Start Now' : 'Borrow Now'}
+      </button>
+      <p className="hint">
+        {borrowerId
+          ? 'Skips approval and pickup — the borrowing is active immediately.'
+          : 'Auto-approved — no need to wait for the owner.'}
+      </p>
+    </div>
+  );
+};
+
+export default QuickBorrowButton;
+```
+
+### 11. Quick-Return Button (Either Party)
+
+```jsx
+// src/components/borrowing/QuickReturnButton.jsx
+// Shown for any borrowing with status ACTIVE or RETURN_INITIATED. Either
+// the borrower or the owner can call this — it closes the borrowing out
+// immediately, with no second-party confirmation required.
+import React, { useState } from 'react';
+import { quickReturn } from '../../services/vehicleBorrowingService';
+
+const QuickReturnButton = ({ borrowingId, userId, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [keyReturned, setKeyReturned] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleQuickReturn = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await quickReturn(userId, borrowingId, { keyReturned });
+      if (response.status === 'success') {
+        onSuccess(response.body); // status is already RETURNED
+      } else {
+        setError(response.message);
+      }
+    } catch (err) {
+      setError('Failed to quick-return vehicle');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="quick-return">
+      {error && <div className="error-message">{error}</div>}
+      <label className="checkbox-label">
+        <input
+          type="checkbox"
+          checked={keyReturned === true}
+          onChange={(e) => setKeyReturned(e.target.checked ? true : null)}
+        />
+        Key physically handed over
+      </label>
+      <button onClick={handleQuickReturn} disabled={loading}>
+        {loading ? 'Completing...' : 'Return Now (No Confirmation Needed)'}
+      </button>
+    </div>
+  );
+};
+
+export default QuickReturnButton;
+```
+
+### 12. Trusted Borrowers Manager (Owner)
+
+```jsx
+// src/components/borrowing/TrustedBorrowersManager.jsx
+// Lets an owner view/add/remove the borrowers who can self-quick-borrow
+// any of their vehicles without per-request approval.
+import React, { useState, useEffect } from 'react';
+import {
+  getTrustedBorrowers,
+  addTrustedBorrower,
+  removeTrustedBorrower,
+  searchUserById
+} from '../../services/vehicleBorrowingService';
+
+const TrustedBorrowersManager = ({ ownerId }) => {
+  const [trustedBorrowers, setTrustedBorrowers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchId, setSearchId] = useState('');
+  const [foundUser, setFoundUser] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+
+  useEffect(() => {
+    fetchTrustedBorrowers();
+  }, [ownerId]);
+
+  const fetchTrustedBorrowers = async () => {
+    setLoading(true);
+    try {
+      const response = await getTrustedBorrowers(ownerId);
+      if (response.status === 'success') {
+        setTrustedBorrowers(response.body || []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchId.trim()) return;
+    setSearching(true);
+    setError(null);
+    try {
+      const response = await searchUserById(searchId);
+      if (response.status === 'success') {
+        setFoundUser(response.body);
+      } else {
+        setError(response.message || 'User not found');
+      }
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!foundUser) return;
+    setActionLoading('add');
+    setError(null);
+    try {
+      const response = await addTrustedBorrower(ownerId, foundUser.id);
+      if (response.status === 'success') {
+        setFoundUser(null);
+        setSearchId('');
+        fetchTrustedBorrowers();
+      } else {
+        setError(response.message);
+      }
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRemove = async (borrowerId) => {
+    setActionLoading(borrowerId);
+    try {
+      const response = await removeTrustedBorrower(ownerId, borrowerId);
+      if (response.status === 'success') {
+        setTrustedBorrowers(prev => prev.filter(tb => tb.borrowerId !== borrowerId));
+      } else {
+        alert(response.message);
+      }
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  return (
+    <div className="trusted-borrowers-manager">
+      <h3>Trusted Borrowers</h3>
+      <p className="hint">
+        People on this list can quick-borrow any of your vehicles instantly,
+        without waiting for your approval each time.
+      </p>
+
+      {error && <div className="error-message">{error}</div>}
+
+      <div className="search-section">
+        <div className="search-input-group">
+          <input
+            type="number"
+            value={searchId}
+            onChange={(e) => setSearchId(e.target.value)}
+            placeholder="Enter AutoAdda ID to add"
+            disabled={foundUser !== null}
+          />
+          {!foundUser ? (
+            <button type="button" onClick={handleSearch} disabled={searching}>
+              {searching ? 'Searching...' : 'Search'}
+            </button>
+          ) : (
+            <button type="button" onClick={() => { setFoundUser(null); setSearchId(''); }}>
+              Clear
+            </button>
+          )}
+        </div>
+
+        {foundUser && (
+          <div className="found-user-card">
+            <p><strong>Name:</strong> {foundUser.name}</p>
+            <p><strong>Mobile:</strong> {foundUser.mobileNumber}</p>
+            <button onClick={handleAdd} disabled={actionLoading === 'add'}>
+              {actionLoading === 'add' ? 'Adding...' : 'Add as Trusted Borrower'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <div>Loading trusted borrowers...</div>
+      ) : trustedBorrowers.length === 0 ? (
+        <div>No trusted borrowers yet.</div>
+      ) : (
+        <ul className="trusted-borrowers-list">
+          {trustedBorrowers.map(tb => (
+            <li key={tb.id}>
+              <span>{tb.borrowerName} ({tb.borrowerMobileNumber})</span>
+              <button
+                className="remove-btn"
+                onClick={() => handleRemove(tb.borrowerId)}
+                disabled={actionLoading === tb.borrowerId}
+              >
+                {actionLoading === tb.borrowerId ? 'Removing...' : 'Remove'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+export default TrustedBorrowersManager;
+```
+
 ---
 
 ## Workflow Diagrams
@@ -1649,6 +2001,76 @@ Guards enforced server-side:
 - `toBorrowerId` cannot equal current `borrowerId` or `ownerId`.
 - Transfers are only allowed while `status === 'ACTIVE'`.
 
+### Quick-Borrow / Quick-Return Flow (Fast Path)
+
+Opt-in alternative to the flows above — same underlying statuses, safety
+checks (vehicle exists, not already borrowed, not in garage), and
+`VehicleBorrowingResponse` shape, just fewer round trips.
+
+```
+Quick-Borrow — one call straight to ACTIVE:
+
+  Owner calls POST /quick-borrow { vehicleId, borrowerId }
+        ↓ skips PENDING and APPROVED entirely
+        Borrowing.status = ACTIVE, borrowingTime = now
+        (borrower does NOT need to call /start separately)
+
+  OR any other user calls POST /quick-borrow { vehicleId }
+        ↓ borrowerId forced to the caller (self-request)
+        ↓ REQUIRES caller to be on the owner's trusted borrower list —
+          otherwise 403 "You are not a trusted borrower for this owner's
+          vehicles. Ask the owner to add you as a trusted borrower first."
+        Borrowing.status = ACTIVE, borrowingTime = now
+        (no owner action required per-request, but the owner must have
+         added this borrower to their trusted list beforehand — see
+         Trusted Borrowers below)
+
+Quick-Return — one call straight to RETURNED, from either party:
+
+  Borrower OR Owner calls PUT /{id}/quick-return
+        ↓ works from ACTIVE, or from RETURN_INITIATED (rescues a
+          borrowing already stuck waiting on the slow-path owner
+          confirmation)
+        Borrowing.status = RETURNED, actualReturnTime = now
+        returnConfirmedByBorrower = true, returnConfirmedByOwner = true
+        (no second-party confirmation, no 30-minute reminder involved)
+```
+
+When to use which:
+- Use the slow path (`/`, `/approve`, `/start`, `/return`, `/confirm-return`)
+  when the owner wants visibility/approval over who borrows their vehicle,
+  or wants an explicit second confirmation before the return counts as done.
+- Use quick-borrow/quick-return for trusted relationships (e.g. a family
+  vehicle, a company fleet where the owner already knows and trusts every
+  driver) where that ceremony is pure friction.
+- The two paths interoperate freely: a borrowing started via the slow path
+  can be closed out via `quick-return` (e.g. to rescue one stuck in
+  `RETURN_INITIATED`), and a borrowing started via `quick-borrow` can still
+  be ended via the slow `/return` + `/confirm-return` pair if desired.
+
+### Trusted Borrowers (Gate on Self-Request Quick-Borrow)
+
+Without this list, self-request quick-borrow would let *any* authenticated
+user instantly claim *any* vehicle with zero owner involvement — far more
+than just skipping ceremony. The trusted borrower list closes that gap:
+
+- Scope is **per owner**, not per vehicle — one entry covers every vehicle
+  that owner has. There's no per-vehicle trust list.
+- Only the **self-request** branch of quick-borrow checks this list. The
+  **owner-initiated** branch (owner passes `borrowerId` explicitly) never
+  needs it — the owner picking the borrower themselves is inherently
+  trusted for that instance.
+- Managed via `POST /trusted-borrowers`, `DELETE /trusted-borrowers/{borrowerId}`,
+  `GET /trusted-borrowers` (all owner-only, keyed off the `X-Auto-Adda-Id`
+  header — there's no `ownerId` path/body parameter, the caller IS the owner).
+- Removing and re-adding the same borrower is safe (idempotent) — the
+  server soft-deletes and revives the same record rather than erroring.
+- A user who isn't yet trusted can still borrow the normal way
+  (`createBorrowingRequest` → owner approves → `/start`), or the owner can
+  quick-borrow-assign it to them directly (owner-initiated branch, no trust
+  list needed) — quick-borrow self-request is just the *fastest* path, not
+  the only path.
+
 ---
 
 ## API Endpoints Reference
@@ -1657,6 +2079,8 @@ Guards enforced server-side:
 |--------|----------|-------------|-----------------|
 | POST | `/vehicle-borrowings` | Create borrowing request | X-Auto-Adda-Id |
 | POST | `/vehicle-borrowings/assign` | Owner assigns vehicle directly | X-Auto-Adda-Id |
+| POST | `/vehicle-borrowings/quick-borrow` | Quick-borrow: owner-assign or self-request, straight to ACTIVE | X-Auto-Adda-Id |
+| PUT | `/vehicle-borrowings/{id}/quick-return` | Quick-return: either party, straight to RETURNED, no second confirmation | X-Auto-Adda-Id |
 | GET | `/vehicle-borrowings/search-user?userId={id}` | Search user by ID | - |
 | PUT | `/vehicle-borrowings/{id}/approve` | Approve request | X-Auto-Adda-Id |
 | PUT | `/vehicle-borrowings/{id}/reject` | Reject request | X-Auto-Adda-Id |
@@ -1677,6 +2101,9 @@ Guards enforced server-side:
 | PUT | `/vehicle-borrowings/{id}/transfers/{tid}/reject` | Recipient rejects transfer | X-Auto-Adda-Id |
 | PUT | `/vehicle-borrowings/{id}/transfers/{tid}/cancel` | Requester cancels pending transfer | X-Auto-Adda-Id |
 | GET | `/vehicle-borrowings/{id}/transfers` | Full transfer chain for borrowing | - |
+| POST | `/trusted-borrowers` | Owner adds a borrower to their trusted list (body: `{ borrowerId }`) | X-Auto-Adda-Id |
+| DELETE | `/trusted-borrowers/{borrowerId}` | Owner removes a borrower from their trusted list | X-Auto-Adda-Id |
+| GET | `/trusted-borrowers` | List the caller's (owner's) trusted borrowers | X-Auto-Adda-Id |
 
 ---
 
@@ -1761,6 +2188,22 @@ Returned by transfer endpoints and embedded as `activeTransfer` /
 }
 ```
 
+### TrustedBorrowerResponse Object
+
+Returned by `POST /trusted-borrowers` and embedded in the array from
+`GET /trusted-borrowers`.
+
+```javascript
+{
+  "id": 12,
+  "ownerId": 3,
+  "borrowerId": 7,
+  "borrowerName": "Alex Kim",
+  "borrowerMobileNumber": "+971501234567",
+  "createdAt": "2024-01-16T09:15:00"
+}
+```
+
 ---
 
 ## Owner Email Notifications
@@ -1774,6 +2217,7 @@ Owners now receive an email (in addition to web push and SMS, gated by
 | Owner approves | ✅ (confirmation) |
 | Owner rejects | ✅ (confirmation) |
 | Owner assigns directly | ✅ (confirmation) |
+| Quick-borrow (owner-assign or self-request) | ✅ (both borrower and owner, generic "now active" copy — same regardless of who initiated) |
 | Borrower cancels | ✅ |
 | Borrower picks up (ACTIVE) | ✅ |
 | Transfer requested | ✅ |
@@ -1784,6 +2228,7 @@ Owners now receive an email (in addition to web push and SMS, gated by
 | Return approval reminder (every 30 min while RETURN_INITIATED) | ✅ (respects owner's *reminder* notification preferences, separate from service-update preferences) |
 | Return rejected (owner rejects → borrower notified) | ✅ (to borrower) |
 | Return completed (RETURNED) | ✅ |
+| Quick-return (RETURNED via the fast path) | ✅ (reuses the same "return completed" notification as the slow path) |
 
 Nothing to do on the frontend — these are server-side. Surface them in
 the UI via the existing borrowing status and `activeTransfer` field. It's
