@@ -220,8 +220,7 @@ public class CarpoolListingServiceImpl implements CarpoolListingService {
     @Override
     public GenericResponse browseListings(CarpoolListingType type, String originCity, String destinationCity) {
         List<CarpoolListing> listings = listingRepository
-                .findByTypeAndOriginCityIgnoreCaseAndDestinationCityIgnoreCaseAndStatusAndIsDeletedFalseOrderByTravelDateTimeAsc(
-                        type, originCity, destinationCity, CarpoolListingStatus.ACTIVE);
+                .browseListings(type, originCity, destinationCity, CarpoolListingStatus.ACTIVE);
 
         return GenericResponse.builder()
                 .status(SUCCESS)

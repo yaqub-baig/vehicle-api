@@ -26,8 +26,14 @@ public interface CarpoolListingRepository extends JpaRepository<CarpoolListing, 
     List<CarpoolListing> findByStatusAndTravelDateTimeBeforeAndIsDeletedFalse(
             CarpoolListingStatus status, LocalDateTime cutoff);
 
-    List<CarpoolListing> findByTypeAndOriginCityIgnoreCaseAndDestinationCityIgnoreCaseAndStatusAndIsDeletedFalseOrderByTravelDateTimeAsc(
-            CarpoolListingType type, String originCity, String destinationCity, CarpoolListingStatus status);
+    @Query("SELECT l FROM CarpoolListing l WHERE l.type = :type AND l.status = :status AND l.isDeleted = false " +
+           "AND (:originCity IS NULL OR LOWER(l.originCity) = LOWER(:originCity)) " +
+           "AND (:destinationCity IS NULL OR LOWER(l.destinationCity) = LOWER(:destinationCity)) " +
+           "ORDER BY l.travelDateTime ASC")
+    List<CarpoolListing> browseListings(@Param("type") CarpoolListingType type,
+                                         @Param("originCity") String originCity,
+                                         @Param("destinationCity") String destinationCity,
+                                         @Param("status") CarpoolListingStatus status);
 
     @Query("SELECT l FROM CarpoolListing l WHERE l.type = 'OFFER' AND l.status = 'ACTIVE' AND l.isDeleted = false " +
            "AND LOWER(l.originCity) = LOWER(:originCity) AND LOWER(l.destinationCity) = LOWER(:destinationCity) " +
