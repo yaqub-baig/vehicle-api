@@ -36,6 +36,7 @@ public class CarRentalListingRepositoryImpl implements CarRentalListingCustomRep
     private static final String KM_LIMIT_PER_DAY = "kmLimitPerDay";
     private static final String BRAND = "brand";
     private static final String MODEL = "model";
+    private static final String LOCATION = "location";
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -83,6 +84,12 @@ public class CarRentalListingRepositoryImpl implements CarRentalListingCustomRep
             } else {
                 predicates.add(listing.get(VEHICLE_ID).in(vehicleIds));
             }
+        }
+
+        if (criteria.hasLocation()) {
+            predicates.add(cb.equal(
+                    cb.lower(listing.get(LOCATION)),
+                    criteria.getLocation().trim().toLowerCase()));
         }
 
         if (criteria.hasRateType()) {

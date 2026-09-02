@@ -1,11 +1,13 @@
 package com.autoadda.apis.vehicle.request;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -31,4 +33,10 @@ public class CarRentalListingRequest {
     private BigDecimal lateReturnPenaltyRate;
 
     private String description;
+
+    @NotBlank(message = "Location is required")
+    private String location;
+
+    // Optional. MediaFile ids returned from POST /mediafiles/upload.
+    private List<Long> imageIds;
 }
