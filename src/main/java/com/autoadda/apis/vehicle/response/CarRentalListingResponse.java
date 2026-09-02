@@ -1,5 +1,6 @@
 package com.autoadda.apis.vehicle.response;
 
+import com.autoadda.apis.vehicle.entity.MediaFile;
 import com.autoadda.apis.vehicle.enums.RentalListingStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -24,6 +26,8 @@ public class CarRentalListingResponse {
     private BigDecimal excessKmPenaltyRate;
     private BigDecimal lateReturnPenaltyRate;
     private String description;
+    private String location;
+    private List<MediaFile> images;
     private RentalListingStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

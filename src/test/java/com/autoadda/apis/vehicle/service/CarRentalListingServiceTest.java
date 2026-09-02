@@ -3,6 +3,7 @@ package com.autoadda.apis.vehicle.service;
 import com.autoadda.apis.vehicle.dao.CarRentalListingRepository;
 import com.autoadda.apis.vehicle.dao.VehicleDetailsRepository;
 import com.autoadda.apis.vehicle.entity.CarRentalListing;
+import com.autoadda.apis.vehicle.entity.MediaFile;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.enums.RentalListingStatus;
 import com.autoadda.apis.vehicle.mapper.CarRentalListingMapper;
@@ -77,6 +78,8 @@ class CarRentalListingServiceTest {
         request.setKmLimitPerDay(200);
         request.setExcessKmPenaltyRate(BigDecimal.valueOf(1.5));
         request.setLateReturnPenaltyRate(BigDecimal.valueOf(20));
+        request.setLocation("Dubai");
+        request.setImageIds(List.of(1L, 2L));
         return request;
     }
 
@@ -96,6 +99,25 @@ class CarRentalListingServiceTest {
         ArgumentCaptor<CarRentalListing> captor = ArgumentCaptor.forClass(CarRentalListing.class);
         org.mockito.Mockito.verify(listingRepository).save(captor.capture());
         assertEquals(OWNER_ID, captor.getValue().getOwnerId());
+    }
+
+    @Test
+    void createListing_withImages_shouldPersistResolvedImages() {
+        when(listingRepository.existsByVehicleIdAndStatusAndIsDeletedFalse(VEHICLE_ID, RentalListingStatus.ACTIVE))
+                .thenReturn(false);
+        List<MediaFile> images = List.of(new MediaFile(), new MediaFile());
+        when(mapper.toEntity(any(CarRentalListingRequest.class), any()))
+                .thenReturn(CarRentalListing.builder().vehicleId(VEHICLE_ID).ownerId(OWNER_ID).images(images)
+                        .status(RentalListingStatus.ACTIVE).isDeleted(false).build());
+
+        GenericResponse response = service.createListing(buildRequest(), OWNER_ID);
+
+        assertEquals("success", response.getStatus());
+        assertEquals("201", response.getCode());
+
+        ArgumentCaptor<CarRentalListing> captor = ArgumentCaptor.forClass(CarRentalListing.class);
+        org.mockito.Mockito.verify(listingRepository).save(captor.capture());
+        assertEquals(2, captor.getValue().getImages().size());
     }
 
     @Test
@@ -131,7 +153,8 @@ class CarRentalListingServiceTest {
     void browseListings_default_shouldReturnPagedResponse() {
         CarRentalListing listing = CarRentalListing.builder()
                 .id(1L).vehicleId(VEHICLE_ID).ownerId(OWNER_ID)
-                .pricePerDay(BigDecimal.valueOf(150)).status(RentalListingStatus.ACTIVE).build();
+                .pricePerDay(BigDecimal.valueOf(150)).location("Dubai")
+                .status(RentalListingStatus.ACTIVE).build();
         Page<CarRentalListing> page = new PageImpl<>(List.of(listing), PageRequest.of(0, 10), 1);
         when(listingRepository.findByCriteriaWithPagination(any(RentalSearchCriteria.class))).thenReturn(page);
 

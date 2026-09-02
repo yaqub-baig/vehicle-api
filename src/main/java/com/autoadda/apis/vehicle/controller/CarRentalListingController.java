@@ -92,12 +92,13 @@ public class CarRentalListingController {
 
     /**
      * Browse active rental listings, paginated and sorted (cheapest first by default)
-     * GET /car-rental-listings/browse?brand=&model=&fromPrice=&toPrice=&rateType=&minKmLimitPerDay=&page=&size=&sortBy=&sortDirection=
+     * GET /car-rental-listings/browse?brand=&model=&location=&fromPrice=&toPrice=&rateType=&minKmLimitPerDay=&page=&size=&sortBy=&sortDirection=
      */
     @GetMapping("/browse")
     public GenericResponse browse(
             @RequestParam(required = false) String brand,
             @RequestParam(required = false) String model,
+            @RequestParam(required = false) String location,
             @RequestParam(required = false) Double fromPrice,
             @RequestParam(required = false) Double toPrice,
             @RequestParam(required = false) String rateType,
@@ -109,6 +110,7 @@ public class CarRentalListingController {
         RentalSearchCriteria criteria = RentalSearchCriteria.builder()
                 .brand(brand)
                 .model(model)
+                .location(location)
                 .fromPrice(fromPrice)
                 .toPrice(toPrice)
                 .rateType(rateType)

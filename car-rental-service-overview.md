@@ -41,9 +41,10 @@ The owner's ad for one of their vehicles.
 
 - Created against a vehicle the caller already owns (`VehicleDetails.customerId` must match the caller).
 - A vehicle can only have **one active listing at a time**.
-- Required: price/day, km limit per day, excess-km penalty rate, late-return penalty rate. Price/hour is optional (an owner can choose to rent daily-only).
+- Required: price/day, km limit per day, excess-km penalty rate, late-return penalty rate, location. Price/hour is optional (an owner can choose to rent daily-only).
+- The owner can attach photos of the car (optional). Images are uploaded separately and referenced by id; editing the listing with a new set of images replaces the old set.
 - Statuses: **ACTIVE → PAUSED ⇄ ACTIVE**, or **→ REMOVED** (terminal). Pausing hides it from browse without losing its history; an owner can't reactivate a listing while another active listing already exists for the same vehicle.
-- Browsing (`GET /car-rental-listings/browse`) is public, paginated, and filterable by brand, model, price range, rate type, and minimum daily km limit.
+- Browsing (`GET /car-rental-listings/browse`) is public, paginated, and filterable by brand, model, location, price range, rate type, and minimum daily km limit.
 
 ### 2.2 Request — `RentalRequest`
 

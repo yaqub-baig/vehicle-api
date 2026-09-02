@@ -20,6 +20,7 @@ public class RentalSearchCriteria {
     private Double toPrice;
     private String rateType;
     private Integer minKmLimitPerDay;
+    private String location;
 
     // Pagination fields
     private Integer page;
@@ -44,6 +45,10 @@ public class RentalSearchCriteria {
 
     public boolean hasModel() {
         return model != null && !model.trim().isEmpty();
+    }
+
+    public boolean hasLocation() {
+        return location != null && !location.trim().isEmpty();
     }
 
     public boolean hasRateType() {

@@ -10,6 +10,7 @@ import lombok.Setter;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "car_rental_listing")
@@ -49,6 +50,13 @@ public class CarRentalListing {
 
     @Column(length = 2000)
     private String description;
+
+    @Column(name = "location", nullable = false)
+    private String location;
+
+    @OneToMany(orphanRemoval = true, cascade = CascadeType.ALL)
+    @JoinColumn(name = "car_rental_listing_images_id")
+    private List<MediaFile> images;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
