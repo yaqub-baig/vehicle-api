@@ -27,7 +27,6 @@ public class CarRentalListingResponse {
     private BigDecimal lateReturnPenaltyRate;
     private String description;
     private String location;
-    private List<MediaFile> images;
     private RentalListingStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -37,4 +36,8 @@ public class CarRentalListingResponse {
     private String vehicleModel;
     private String vehicleYear;
     private String vehicleNickName;
+
+    // Photos of the car, pulled from the linked VehicleDetails.
+    private List<MediaFile> vehicleImages;
+    private MediaFile mainImage;
 }
