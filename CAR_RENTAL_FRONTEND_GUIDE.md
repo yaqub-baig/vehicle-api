@@ -32,17 +32,12 @@ const CYCLES_URL = `${API_BASE_URL}/rental-cycles`;
 // LISTINGS (Owner creates/manages, anyone browses)
 // ============================================
 
-// Listing photos: upload the files FIRST, then send the returned ids.
-//   1. POST /mediafiles/upload  (multipart/form-data, field name "files", one or more)
-//        -> [{ id, filePath, mediaType, ... }, ...]
-//   2. pass those ids as `imageIds: [...]` in the create/update body below.
-// Display URL for a returned image = `${FILE_BASE_URL}/uploads/${image.filePath}`.
-export const uploadListingImages = async (files) => {
-  const form = new FormData();
-  files.forEach((f) => form.append('files', f));
-  const response = await fetch(`${API_BASE_URL}/mediafiles/upload`, { method: 'POST', body: form });
-  return response.json();   // array of MediaFile { id, filePath, ... }
-};
+// Car photos are NOT set on the listing. Each listing response carries the linked
+// vehicle's photos, resolved from VehicleDetails:
+//   response.body.vehicleImages : MediaFile[]   (all photos of the car)
+//   response.body.mainImage     : MediaFile     (the vehicle's primary photo, or null)
+// Display URL for a photo = `${FILE_BASE_URL}/uploads/${image.filePath}`.
+// To change the photos, edit the vehicle via the vehicle endpoints, not the listing.
 
 // Create a rental listing for one of the owner's vehicles
 export const createListing = async (userId, data) => {
@@ -57,15 +52,12 @@ export const createListing = async (userId, data) => {
       excessKmPenaltyRate: data.excessKmPenaltyRate,
       lateReturnPenaltyRate: data.lateReturnPenaltyRate,
       location: data.location,                    // required — where the car is picked up
-      description: data.description || null,
-      imageIds: data.imageIds || []              // optional — MediaFile ids from uploadListingImages()
+      description: data.description || null
     })
   });
   return response.json();
 };
 
-// Sending `imageIds` replaces the whole photo set — ids left out are permanently deleted.
-// Omit `imageIds` entirely to leave the existing photos untouched.
 export const updateListing = async (userId, listingId, data) => {
   const response = await fetch(`${LISTINGS_URL}/${listingId}`, {
     method: 'PUT',
@@ -515,9 +507,8 @@ Render the breakdown as: `basePrice − discountAmount + excessKmPenalty + lateR
 
 | Method | Path | Auth header | Notes |
 |---|---|---|---|
-| POST | `/mediafiles/upload` | none | multipart, field `files`; upload photos first, then pass the returned ids as `imageIds` |
-| POST | `/` | required | owner only, for their own vehicle; optional `imageIds` |
-| PUT | `/{id}` | required, must own listing | `imageIds` replaces the photo set (dropped ids are deleted); omit to keep current photos |
+| POST | `/` | required | owner only, for their own vehicle |
+| PUT | `/{id}` | required, must own listing | |
 | PUT | `/{id}/pause` | required, must own listing | hides from browse |
 | PUT | `/{id}/reactivate` | required, must own listing | fails if another ACTIVE listing exists for the vehicle |
 | PUT | `/{id}/remove` | required, must own listing | terminal |

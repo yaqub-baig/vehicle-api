@@ -1,22 +1,17 @@
 package com.autoadda.apis.vehicle.mapper;
 
-import com.autoadda.apis.vehicle.dao.MediaFileRepository;
 import com.autoadda.apis.vehicle.entity.CarRentalListing;
 import com.autoadda.apis.vehicle.entity.MediaFile;
 import com.autoadda.apis.vehicle.entity.VehicleDetails;
 import com.autoadda.apis.vehicle.enums.RentalListingStatus;
 import com.autoadda.apis.vehicle.request.CarRentalListingRequest;
 import com.autoadda.apis.vehicle.response.CarRentalListingResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 public class CarRentalListingMapper {
-
-    private final MediaFileRepository mediaFileRepository;
 
     public CarRentalListing toEntity(CarRentalListingRequest request, Integer ownerId) {
         return CarRentalListing.builder()
@@ -29,7 +24,6 @@ public class CarRentalListingMapper {
                 .lateReturnPenaltyRate(request.getLateReturnPenaltyRate())
                 .description(request.getDescription())
                 .location(request.getLocation())
-                .images(resolveImages(request.getImageIds()))
                 .status(RentalListingStatus.ACTIVE)
                 .isDeleted(false)
                 .build();
@@ -43,9 +37,6 @@ public class CarRentalListingMapper {
         listing.setLateReturnPenaltyRate(request.getLateReturnPenaltyRate());
         listing.setDescription(request.getDescription());
         listing.setLocation(request.getLocation());
-        if (request.getImageIds() != null) {
-            listing.setImages(resolveImages(request.getImageIds()));
-        }
     }
 
     public CarRentalListingResponse toResponse(CarRentalListing entity, VehicleDetails vehicle) {
@@ -64,7 +55,6 @@ public class CarRentalListingMapper {
                 .lateReturnPenaltyRate(entity.getLateReturnPenaltyRate())
                 .description(entity.getDescription())
                 .location(entity.getLocation())
-                .images(entity.getImages())
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt());
@@ -74,15 +64,22 @@ public class CarRentalListingMapper {
                     .vehicleModel(vehicle.getModel())
                     .vehicleYear(vehicle.getYear())
                     .vehicleNickName(vehicle.getNickName());
+
+            List<MediaFile> vehicleImages = vehicle.getVehicleImages();
+            builder.vehicleImages(vehicleImages)
+                    .mainImage(resolveMainImage(vehicleImages, vehicle.getMainImageId()));
         }
 
         return builder.build();
     }
 
-    private List<MediaFile> resolveImages(List<Long> imageIds) {
-        if (imageIds == null || imageIds.isEmpty()) {
+    private MediaFile resolveMainImage(List<MediaFile> vehicleImages, Long mainImageId) {
+        if (vehicleImages == null || mainImageId == null) {
             return null;
         }
-        return mediaFileRepository.findAllById(imageIds);
+        return vehicleImages.stream()
+                .filter(image -> mainImageId.equals(image.getId()))
+                .findFirst()
+                .orElse(null);
     }
 }
