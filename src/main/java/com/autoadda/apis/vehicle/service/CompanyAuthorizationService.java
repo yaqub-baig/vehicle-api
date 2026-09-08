@@ -45,4 +45,14 @@ public class CompanyAuthorizationService {
                 .map(c -> callerId.equals(c.getCompanyOwnerId()))
                 .orElse(false);
     }
+
+    public boolean isOwnerWithType(Long companyId, Integer callerId, CompanyType type) {
+        if (companyId == null || callerId == null) {
+            return false;
+        }
+        return companyRepository.findById(companyId)
+                .map(c -> callerId.equals(c.getCompanyOwnerId())
+                        && c.getTypes() != null && c.getTypes().contains(type))
+                .orElse(false);
+    }
 }
