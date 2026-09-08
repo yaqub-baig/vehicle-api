@@ -3,7 +3,9 @@ package com.autoadda.apis.vehicle.service.impl;
 import com.autoadda.apis.vehicle.clients.AuthClient;
 import com.autoadda.apis.vehicle.dao.CompanyRepository;
 import com.autoadda.apis.vehicle.entity.Company;
+import com.autoadda.apis.vehicle.enums.CompanyType;
 import com.autoadda.apis.vehicle.exception.ConflictException;
+import com.autoadda.apis.vehicle.exception.InvalidInputException;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.mapper.CompanyMapper;
 import com.autoadda.apis.vehicle.request.CompanyRequest;
@@ -32,6 +34,7 @@ public class CompanyService {
         validateTradeLicense ( companyRequest );
         validateOwnerHasNoCompany ( companyRequest.getCompanyOwnerId ( ) );
         Company company = companyMapper.toEntity ( companyRequest );
+        validateTypeSpecificData ( company );
         Company company1 = companyRepository.save ( company );
         identityClient.updateRole ( company1.getCompanyOwnerId ( ), ERole.COMPANY_OWNER );
         CompanyResponse companyResponse = companyMapper.toResponse ( company1 );
@@ -40,6 +43,28 @@ public class CompanyService {
                 .code ( "200" )
                 .message ( SUCCESS )
                 .build ( );
+    }
+
+    /**
+     * A NEW_CAR_SHOWROOM must declare a showroom address, an RTA approval number and at least
+     * one authorized brand. USED_CAR_DEALER / FLEET_OWNER carry no extra requirements.
+     */
+    private void validateTypeSpecificData(Company company) {
+        if (company.getTypes() != null && company.getTypes().contains(CompanyType.NEW_CAR_SHOWROOM)) {
+            if (isBlank(company.getShowroomAddress())) {
+                throw new InvalidInputException("Showroom address is required for a NEW_CAR_SHOWROOM");
+            }
+            if (isBlank(company.getRtaApprovalNumber())) {
+                throw new InvalidInputException("RTA approval number is required for a NEW_CAR_SHOWROOM");
+            }
+            if (company.getAuthorizedBrands() == null || company.getAuthorizedBrands().isEmpty()) {
+                throw new InvalidInputException("At least one authorized brand is required for a NEW_CAR_SHOWROOM");
+            }
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private void validateTradeLicense(CompanyRequest companyRequest) {
@@ -98,6 +123,7 @@ public class CompanyService {
             validateTradeLicense ( companyRequest );
             company.setTradeLicenseNumber ( companyRequest.getTradeLicenseNumber ( ) );
         }
+        validateTypeSpecificData ( company );
         CompanyResponse companyResponse = companyMapper.toResponse ( companyRepository.save ( company ) );
         return GenericResponse.builder ( )
                 .body ( companyResponse )
