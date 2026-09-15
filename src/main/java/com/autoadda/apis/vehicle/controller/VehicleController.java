@@ -1,6 +1,7 @@
 package com.autoadda.apis.vehicle.controller;
 
 import com.autoadda.apis.vehicle.request.VehicleRegistrationRequest;
+import com.autoadda.apis.vehicle.request.VehicleTelemetryUpdateRequest;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
 import com.autoadda.apis.vehicle.service.VehicleService;
@@ -52,6 +53,13 @@ public class VehicleController {
                                                 @RequestParam("vehicleId") Integer vehicleId,
                                                 @RequestHeader(value = "X-Auto-Adda-Id") String userId) {
         return vehicleService.updateVehicleDetails ( vehicleId, request, userId );
+    }
+
+    //isc  --> inter service communication (no X-Auto-Adda-Id header required)
+    @PutMapping("/isc/{vehicleId}")
+    public GenericResponse updateVehicleDetailsForIsc(@PathVariable Integer vehicleId,
+                                                       @RequestBody VehicleTelemetryUpdateRequest request) {
+        return vehicleService.updateVehicleDetailsForIsc ( vehicleId, request );
     }
 
 

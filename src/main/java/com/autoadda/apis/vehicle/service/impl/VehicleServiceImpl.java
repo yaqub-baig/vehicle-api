@@ -10,6 +10,7 @@ import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
 import com.autoadda.apis.vehicle.mapper.MediaFileMapper;
 import com.autoadda.apis.vehicle.mapper.VehicleMapper;
 import com.autoadda.apis.vehicle.request.VehicleRegistrationRequest;
+import com.autoadda.apis.vehicle.request.VehicleTelemetryUpdateRequest;
 import com.autoadda.apis.vehicle.response.CompanyResponse;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.response.MediaFileResponse;
@@ -142,6 +143,28 @@ public class VehicleServiceImpl implements VehicleService {
         if (!filesToCleanup.isEmpty()) {
             mediaFileCleanupService.scheduleMediaFileCleanup(filesToCleanup);
         }
+
+        VehicleDetailResponse response = vehicleMapper.toResponse(save);
+        VehicleDetailResponse responded = addCompanyResponse(response);
+        return GenericResponse.builder()
+                .body(responded)
+                .code("200")
+                .message(SUCCESS)
+                .status(SUCCESS)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse updateVehicleDetailsForIsc(Integer vehicleId, VehicleTelemetryUpdateRequest request) {
+        VehicleDetails existing = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: " + vehicleId));
+
+        if (request.getOdometer() != null) {
+            existing.setOdometer(request.getOdometer());
+        }
+
+        VehicleDetails save = vehicleRepository.save(existing);
 
         VehicleDetailResponse response = vehicleMapper.toResponse(save);
         VehicleDetailResponse responded = addCompanyResponse(response);

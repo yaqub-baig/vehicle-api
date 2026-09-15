@@ -1,6 +1,7 @@
 package com.autoadda.apis.vehicle.service;
 
 import com.autoadda.apis.vehicle.request.VehicleRegistrationRequest;
+import com.autoadda.apis.vehicle.request.VehicleTelemetryUpdateRequest;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.response.VehicleDetailResponse;
 
@@ -14,6 +15,8 @@ public interface VehicleService {
     GenericResponse getVehicleImagesByVehicleId(Integer vehicleId);
 
     GenericResponse updateVehicleDetails(Integer vehicleId, VehicleRegistrationRequest request, String userId);
+
+    GenericResponse updateVehicleDetailsForIsc(Integer vehicleId, VehicleTelemetryUpdateRequest request);
 
     GenericResponse deleteVehicleDetails(Integer vehicleId, String userId);
 
