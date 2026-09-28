@@ -78,6 +78,12 @@ WHERE NOT EXISTS (
     SELECT 1 FROM territory_area ta WHERE LOWER(ta.name) = LOWER(TRIM(city.name))
 );
 
+-- The WHERE below filters on origin/destination_territory_area_id, not a key column of
+-- carpool_listing, so MySQL Workbench's "safe update mode" (sql_safe_updates) rejects this
+-- UPDATE by default. Disable it for this statement only, then restore it.
+SET @prior_sql_safe_updates = @@SESSION.sql_safe_updates;
+SET SQL_SAFE_UPDATES = 0;
+
 UPDATE carpool_listing l
 JOIN territory_area ota ON LOWER(ota.name) = LOWER(TRIM(l.origin_city))
 JOIN state_territory ost ON ost.id = ota.state_territory_id
@@ -92,6 +98,8 @@ SET l.origin_country_id = oc.id,
     l.destination_state_territory_id = dst.id,
     l.destination_territory_area_id = dta.id
 WHERE l.origin_territory_area_id IS NULL OR l.destination_territory_area_id IS NULL;
+
+SET SQL_SAFE_UPDATES = @prior_sql_safe_updates;
 
 -- =============================================================================
 -- VERIFY (run these to confirm)
