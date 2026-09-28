@@ -20,5 +20,5 @@ public interface CarpoolListingService {
 
     GenericResponse getMatchesForListing(Long listingId, Integer userId);
 
-    GenericResponse browseListings(CarpoolListingType type, String originCity, String destinationCity);
+    GenericResponse browseListings(CarpoolListingType type, Long originTerritoryAreaId, Long destinationTerritoryAreaId);
 }

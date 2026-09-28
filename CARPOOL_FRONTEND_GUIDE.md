@@ -4,7 +4,9 @@
 
 This guide covers integrating the Car Pooling feature into the AutoAdda frontend (React/JS). It follows the same conventions as `VEHICLE_BORROWING_FRONTEND_GUIDE.md` — reuse the existing `src/config/api.js` (`API_BASE_URL`, `getHeaders(userId)`) rather than redefining it.
 
-All endpoints require the `X-Auto-Adda-Id` header (the caller's AutoAdda user id) except the public read endpoints (`GET /carpool-listings/{id}`, `GET /carpool-listings/browse`).
+All endpoints require the `X-Auto-Adda-Id` header (the caller's AutoAdda user id) except the public read endpoints (`GET /carpool-listings/{id}`, `GET /carpool-listings/browse`) and the address lookup endpoints (`/countries`, `/state-territories`, `/territory-areas`, `/streets`).
+
+A carpool listing's origin/destination is now a structured address (`country -> state/territory -> territory area -> street`), not a free-text city string — see [Address Lookups](#address-lookups) below for how to populate cascading dropdowns and resolve the ids a listing needs.
 
 ---
 
@@ -16,20 +18,46 @@ import API_BASE_URL, { getHeaders } from '../config/api';
 
 const LISTINGS_URL = `${API_BASE_URL}/carpool-listings`;
 const CONNECTIONS_URL = `${API_BASE_URL}/carpool-connections`;
+const COUNTRIES_URL = `${API_BASE_URL}/countries`;
+const STATE_TERRITORIES_URL = `${API_BASE_URL}/state-territories`;
+const TERRITORY_AREAS_URL = `${API_BASE_URL}/territory-areas`;
+const STREETS_URL = `${API_BASE_URL}/streets`;
+
+// ============================================
+// ADDRESS LOOKUPS (cascading dropdowns)
+// ============================================
+
+export const getCountries = async () => (await fetch(COUNTRIES_URL)).json();
+
+export const getStateTerritories = async (countryId) => {
+  const params = new URLSearchParams({ countryId });
+  return (await fetch(`${STATE_TERRITORIES_URL}?${params}`)).json();
+};
+
+export const getTerritoryAreas = async (stateTerritoryId) => {
+  const params = new URLSearchParams({ stateTerritoryId });
+  return (await fetch(`${TERRITORY_AREAS_URL}?${params}`)).json();
+};
+
+export const getStreets = async (territoryAreaId) => {
+  const params = new URLSearchParams({ territoryAreaId });
+  return (await fetch(`${STREETS_URL}?${params}`)).json();
+};
 
 // ============================================
 // LISTINGS
 // ============================================
 
 // Create a listing (type: 'OFFER' | 'SEEKER')
+// originAddress/destinationAddress: { countryId, stateTerritoryId, territoryAreaId, streetId?, googleMapsUrl? }
 export const createListing = async (userId, data) => {
   const response = await fetch(LISTINGS_URL, {
     method: 'POST',
     headers: getHeaders(userId),
     body: JSON.stringify({
       type: data.type,
-      originCity: data.originCity,
-      destinationCity: data.destinationCity,
+      originAddress: data.originAddress,
+      destinationAddress: data.destinationAddress,
       travelDateTime: data.travelDateTime,
       budget: data.budget,
       availableSeats: data.availableSeats || null,  // OFFER only
@@ -86,8 +114,8 @@ export const getMatches = async (userId, listingId) => {
 };
 
 // Public browse, no auth header required
-export const browseListings = async (type, origin, destination) => {
-  const params = new URLSearchParams({ type, origin, destination });
+export const browseListings = async (type, originTerritoryAreaId, destinationTerritoryAreaId) => {
+  const params = new URLSearchParams({ type, originTerritoryAreaId, destinationTerritoryAreaId });
   const response = await fetch(`${LISTINGS_URL}/browse?${params}`);
   return response.json();
 };
@@ -150,6 +178,17 @@ export const getMyConnections = async (userId, status = null) => {
 
 ## Endpoint Reference
 
+### Address Lookups
+
+Used to populate cascading dropdowns when a user is entering a pickup/drop address, and to resolve the ids a listing's `originAddress`/`destinationAddress` needs. All open, no auth header, all support the standard CRUD verbs (`POST`, `GET`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}` — soft delete) for admin-panel management; only the cascading `GET` list is shown here.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/countries` | all active countries |
+| GET | `/state-territories?countryId=` | states/territories under a country |
+| GET | `/territory-areas?stateTerritoryId=` | areas under a state/territory |
+| GET | `/streets?territoryAreaId=` | streets under a territory area |
+
 ### Listings — `/carpool-listings`
 
 | Method | Path | Auth header | Notes |
@@ -160,8 +199,8 @@ export const getMyConnections = async (userId, status = null) => {
 | PUT | `/{id}/complete` | required, must own listing | only while `ACTIVE` |
 | GET | `/{id}` | none | public read |
 | GET | `/my-listings?type=` | required | `type` optional |
-| GET | `/{id}/matches` | required, must own listing | compatible opposite-type listings |
-| GET | `/browse?type=&origin=&destination=` | none | public browse |
+| GET | `/{id}/matches` | required, must own listing | compatible opposite-type listings (same territory area both ends) |
+| GET | `/browse?type=&originTerritoryAreaId=&destinationTerritoryAreaId=` | none | public browse |
 
 ### Connections — `/carpool-connections`
 
@@ -182,8 +221,19 @@ export const getMyConnections = async (userId, status = null) => {
 ```json
 {
   "type": "OFFER",
-  "originCity": "Lahore",
-  "destinationCity": "Islamabad",
+  "originAddress": {
+    "countryId": 1,
+    "stateTerritoryId": 2,
+    "territoryAreaId": 15,
+    "streetId": 102,
+    "googleMapsUrl": "https://maps.google.com/?q=25.1122,55.2003"
+  },
+  "destinationAddress": {
+    "countryId": 1,
+    "stateTerritoryId": 2,
+    "territoryAreaId": 22,
+    "googleMapsUrl": "https://maps.google.com/?q=25.0772,55.1409"
+  },
   "travelDateTime": "2026-08-01T08:00:00",
   "budget": 1500,
   "availableSeats": 3,
@@ -202,8 +252,20 @@ export const getMyConnections = async (userId, status = null) => {
     "userId": 101,
     "posterName": "Ali Raza",
     "type": "OFFER",
-    "originCity": "Lahore",
-    "destinationCity": "Islamabad",
+    "originAddress": {
+      "country": { "id": 1, "code": "AE", "name": "United Arab Emirates", "isActive": true },
+      "stateTerritory": { "id": 2, "code": "DUBAI", "name": "Dubai", "isActive": true, "country": { "id": 1, "code": "AE", "name": "United Arab Emirates", "isActive": true } },
+      "territoryArea": { "id": 15, "code": "AL_BARSHA", "name": "Al Barsha", "isActive": true, "stateTerritory": { "...": "..." } },
+      "street": { "id": 102, "code": "12A", "name": null, "isActive": true, "territoryArea": { "...": "..." } },
+      "googleMapsUrl": "https://maps.google.com/?q=25.1122,55.2003"
+    },
+    "destinationAddress": {
+      "country": { "id": 1, "code": "AE", "name": "United Arab Emirates", "isActive": true },
+      "stateTerritory": { "id": 2, "code": "DUBAI", "name": "Dubai", "isActive": true, "country": { "...": "..." } },
+      "territoryArea": { "id": 22, "code": "DEIRA", "name": "Deira", "isActive": true, "stateTerritory": { "...": "..." } },
+      "street": null,
+      "googleMapsUrl": "https://maps.google.com/?q=25.0772,55.1409"
+    },
     "travelDateTime": "2026-08-01T08:00:00",
     "budget": 1500,
     "availableSeats": 3,
@@ -260,6 +322,7 @@ All errors are returned with HTTP 200 and `status: "error"` (or `"failed"` for f
 | Editing someone else's listing | 403 | You are not authorized to edit this listing |
 | Editing a non-active listing | 400 | Only active listings can be edited |
 | Travel time in the past | 400 | Travel date/time must be in the future |
+| Unknown country/state/area/street id in an address | 404 | Country not found / State/territory not found / Territory area not found / Street not found |
 | OFFER without seats | 400 | Available seats are required for an offer listing |
 | Connecting to your own listing | 400 | Cannot connect to your own listing |
 | Connecting same-type listings | 400 | Can only connect to the opposite listing type |

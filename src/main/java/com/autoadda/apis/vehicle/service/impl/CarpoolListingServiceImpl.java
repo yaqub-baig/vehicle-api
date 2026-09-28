@@ -203,10 +203,13 @@ public class CarpoolListingServiceImpl implements CarpoolListingService {
                     .build();
         }
 
+        Long originTerritoryAreaId = listing.getOriginAddress().getTerritoryArea().getId();
+        Long destinationTerritoryAreaId = listing.getDestinationAddress().getTerritoryArea().getId();
+
         List<CarpoolListing> matches = listing.getType() == CarpoolListingType.SEEKER
-                ? listingRepository.findMatchingOffersForSeeker(listing.getOriginCity(), listing.getDestinationCity(),
+                ? listingRepository.findMatchingOffersForSeeker(originTerritoryAreaId, destinationTerritoryAreaId,
                         userId, listing.getBudget(), LocalDateTime.now())
-                : listingRepository.findMatchingSeekersForOffer(listing.getOriginCity(), listing.getDestinationCity(),
+                : listingRepository.findMatchingSeekersForOffer(originTerritoryAreaId, destinationTerritoryAreaId,
                         userId, listing.getBudget(), LocalDateTime.now());
 
         return GenericResponse.builder()
@@ -218,9 +221,9 @@ public class CarpoolListingServiceImpl implements CarpoolListingService {
     }
 
     @Override
-    public GenericResponse browseListings(CarpoolListingType type, String originCity, String destinationCity) {
+    public GenericResponse browseListings(CarpoolListingType type, Long originTerritoryAreaId, Long destinationTerritoryAreaId) {
         List<CarpoolListing> listings = listingRepository
-                .browseListings(type, originCity, destinationCity, CarpoolListingStatus.ACTIVE);
+                .browseListings(type, originTerritoryAreaId, destinationTerritoryAreaId, CarpoolListingStatus.ACTIVE);
 
         return GenericResponse.builder()
                 .status(SUCCESS)

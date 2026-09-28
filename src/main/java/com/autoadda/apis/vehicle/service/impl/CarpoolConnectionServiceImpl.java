@@ -2,6 +2,7 @@ package com.autoadda.apis.vehicle.service.impl;
 
 import com.autoadda.apis.vehicle.dao.CarpoolConnectionRepository;
 import com.autoadda.apis.vehicle.dao.CarpoolListingRepository;
+import com.autoadda.apis.vehicle.entity.Address;
 import com.autoadda.apis.vehicle.entity.CarpoolConnection;
 import com.autoadda.apis.vehicle.entity.CarpoolListing;
 import com.autoadda.apis.vehicle.enums.CarpoolConnectionStatus;
@@ -313,11 +314,21 @@ public class CarpoolConnectionServiceImpl implements CarpoolConnectionService {
         CarpoolListing seekerListing = requesterListing.getType() == CarpoolListingType.SEEKER
                 ? requesterListing : targetListing;
 
-        boolean citiesMatch = offerListing.getOriginCity().equalsIgnoreCase(seekerListing.getOriginCity())
-                && offerListing.getDestinationCity().equalsIgnoreCase(seekerListing.getDestinationCity());
+        boolean routeMatches = addressesMatch(offerListing.getOriginAddress(), seekerListing.getOriginAddress())
+                && addressesMatch(offerListing.getDestinationAddress(), seekerListing.getDestinationAddress());
         boolean budgetCompatible = seekerListing.getBudget().compareTo(offerListing.getBudget()) >= 0;
 
-        return citiesMatch && budgetCompatible;
+        return routeMatches && budgetCompatible;
+    }
+
+    /**
+     * Compatible when both ends are in the same territory area. Country/state are also compared
+     * as cheap defense-in-depth; a territory area's own FK chain already guarantees they match.
+     */
+    private boolean addressesMatch(Address a, Address b) {
+        return a.getTerritoryArea().getId().equals(b.getTerritoryArea().getId())
+                && a.getStateTerritory().getId().equals(b.getStateTerritory().getId())
+                && a.getCountry().getId().equals(b.getCountry().getId());
     }
 
     private CarpoolConnectionResponse mapConnection(CarpoolConnection connection) {

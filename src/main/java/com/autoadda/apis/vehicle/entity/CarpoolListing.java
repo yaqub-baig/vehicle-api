@@ -32,11 +32,25 @@ public class CarpoolListing {
     @Column(nullable = false)
     private CarpoolListingType type;
 
-    @Column(name = "origin_city", nullable = false)
-    private String originCity;
+    @Embedded
+    @AssociationOverrides({
+        @AssociationOverride(name = "country", joinColumns = @JoinColumn(name = "origin_country_id")),
+        @AssociationOverride(name = "stateTerritory", joinColumns = @JoinColumn(name = "origin_state_territory_id")),
+        @AssociationOverride(name = "territoryArea", joinColumns = @JoinColumn(name = "origin_territory_area_id")),
+        @AssociationOverride(name = "street", joinColumns = @JoinColumn(name = "origin_street_id"))
+    })
+    @AttributeOverride(name = "googleMapsUrl", column = @Column(name = "origin_google_maps_url", length = 500))
+    private Address originAddress;
 
-    @Column(name = "destination_city", nullable = false)
-    private String destinationCity;
+    @Embedded
+    @AssociationOverrides({
+        @AssociationOverride(name = "country", joinColumns = @JoinColumn(name = "destination_country_id")),
+        @AssociationOverride(name = "stateTerritory", joinColumns = @JoinColumn(name = "destination_state_territory_id")),
+        @AssociationOverride(name = "territoryArea", joinColumns = @JoinColumn(name = "destination_territory_area_id")),
+        @AssociationOverride(name = "street", joinColumns = @JoinColumn(name = "destination_street_id"))
+    })
+    @AttributeOverride(name = "googleMapsUrl", column = @Column(name = "destination_google_maps_url", length = 500))
+    private Address destinationAddress;
 
     @Column(name = "travel_date_time", nullable = false)
     private LocalDateTime travelDateTime;

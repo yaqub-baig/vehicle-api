@@ -94,13 +94,13 @@ public class CarpoolListingController {
 
     /**
      * Browse active listings by type, optionally filtered by route
-     * GET /carpool-listings/browse?type=OFFER&origin=Lahore&destination=Islamabad
+     * GET /carpool-listings/browse?type=OFFER&originTerritoryAreaId=1&destinationTerritoryAreaId=2
      */
     @GetMapping("/browse")
     public GenericResponse browse(
             @RequestParam CarpoolListingType type,
-            @RequestParam(required = false) String origin,
-            @RequestParam(required = false) String destination) {
-        return listingService.browseListings(type, origin, destination);
+            @RequestParam(required = false) Long originTerritoryAreaId,
+            @RequestParam(required = false) Long destinationTerritoryAreaId) {
+        return listingService.browseListings(type, originTerritoryAreaId, destinationTerritoryAreaId);
     }
 }
