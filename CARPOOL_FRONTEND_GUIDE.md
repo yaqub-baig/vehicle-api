@@ -253,14 +253,14 @@ Used to populate cascading dropdowns when a user is entering a pickup/drop addre
     "posterName": "Ali Raza",
     "type": "OFFER",
     "originAddress": {
-      "country": { "id": 1, "code": "AE", "name": "United Arab Emirates", "isActive": true },
-      "stateTerritory": { "id": 2, "code": "DUBAI", "name": "Dubai", "isActive": true, "country": { "id": 1, "code": "AE", "name": "United Arab Emirates", "isActive": true } },
+      "country": { "id": 1, "code": "UAE", "name": "United Arab Emirates", "isActive": true },
+      "stateTerritory": { "id": 2, "code": "DUBAI", "name": "Dubai", "isActive": true, "country": { "id": 1, "code": "UAE", "name": "United Arab Emirates", "isActive": true } },
       "territoryArea": { "id": 15, "code": "AL_BARSHA", "name": "Al Barsha", "isActive": true, "stateTerritory": { "...": "..." } },
       "street": { "id": 102, "code": "12A", "name": null, "isActive": true, "territoryArea": { "...": "..." } },
       "googleMapsUrl": "https://maps.google.com/?q=25.1122,55.2003"
     },
     "destinationAddress": {
-      "country": { "id": 1, "code": "AE", "name": "United Arab Emirates", "isActive": true },
+      "country": { "id": 1, "code": "UAE", "name": "United Arab Emirates", "isActive": true },
       "stateTerritory": { "id": 2, "code": "DUBAI", "name": "Dubai", "isActive": true, "country": { "...": "..." } },
       "territoryArea": { "id": 22, "code": "DEIRA", "name": "Deira", "isActive": true, "stateTerritory": { "...": "..." } },
       "street": null,
