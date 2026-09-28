@@ -18,7 +18,7 @@ This document describes the Car Pooling feature in the AutoAdda Vehicle API. A c
 - **Single entity with a type discriminator** (`CarpoolListing.type` = `OFFER`/`SEEKER`) instead of two separate entities. An offer and a seeker post are two symmetric instances of the same concept (route + date + budget), not distinct business processes — splitting them would duplicate DAO/mapper/controller code and turn matching into a needless cross-table join.
 - **`budget` is overloaded by type**: for an `OFFER` it's the asking price per seat; for a `SEEKER` it's the maximum the rider is willing to pay per seat. Matching requires `seekerBudget >= offerBudget`.
 - **No FK to `VehicleDetails`**: an offer's car info (`carDescription`) is a freeform, optional string, not linked to an existing vehicle record.
-- **Matching is exact-text city match** (case-insensitive) plus budget compatibility. No geocoding/lat-long for MVP.
+- **Matching is by territory area** (equal `TerritoryArea` on both origin and destination, for both listings) plus budget compatibility. Origin/destination are a full structured address — `Country -> StateTerritory -> TerritoryArea -> Street` — each level its own admin-manageable lookup table, rather than a free-text city string. A `TerritoryArea`'s FK chain fixes its state/country, so matching on `territoryArea.id` alone is unambiguous (no city-name-collision risk like the old text match had).
 - **A listing does not auto-close when a connection is accepted** — an `OFFER` can have multiple seats and legitimately accept multiple `SEEKER` connections. Posters manually mark listings `COMPLETED`/`CANCELLED`; a scheduler auto-`EXPIRED`s listings whose `travelDateTime` has passed.
 - **Connect = reveal contact info**, not in-app chat. This reuses the existing `AuthClient` email/push/SMS notification pipeline (see `CarpoolNotificationService`), the same pattern as `BorrowingNotificationService`.
 
@@ -36,7 +36,8 @@ This document describes the Car Pooling feature in the AutoAdda Vehicle API. A c
 │                                                                    │
 │  2. Either side calls GET /carpool-listings/{id}/matches         │
 │     └─> System finds opposite-type ACTIVE listings with the      │
-│         same origin/destination city and compatible budget       │
+│         same origin/destination territory area and compatible    │
+│         budget                                                    │
 │                                                                    │
 │  3. Either side sends a connect request                          │
 │     POST /carpool-connections                                    │
@@ -59,20 +60,32 @@ This document describes the Car Pooling feature in the AutoAdda Vehicle API. A c
 
 ## Database Schema
 
-Both tables are created automatically by Hibernate (`spring.jpa.hibernate.ddl-auto=update`) — no manual migration script needed.
+All tables are created automatically by Hibernate (`spring.jpa.hibernate.ddl-auto=update`). Moving `CarpoolListing` from free-text city columns to the address-lookup hierarchy required a one-time backfill for existing rows — see `migrations/2026-09-28_carpool_structured_address_backfill.sql`.
+
+### 0. Address lookup tables: Country -> StateTerritory -> TerritoryArea -> Street
+
+**Files**: `entity/Country.java`, `entity/StateTerritory.java`, `entity/TerritoryArea.java`, `entity/Street.java`
+**Tables**: `country`, `state_territory`, `territory_area`, `street`
+
+Each is a standalone, admin-manageable reference table (`code`, `name`, `isActive` soft-delete flag, timestamps), with `state_territory` FK'd to `country`, `territory_area` FK'd to `state_territory`, and `street` FK'd to `territory_area`. Each has its own full CRUD endpoint set (`controller/CountryController.java`, `StateTerritoryController.java`, `TerritoryAreaController.java`, `StreetController.java`) so the panel can manage them and the client can populate cascading address dropdowns — see the frontend guide's Address Lookups section.
 
 ### 1. Entity: CarpoolListing
 
 **File**: `src/main/java/com/autoadda/apis/vehicle/entity/CarpoolListing.java`
 **Table**: `carpool_listing`
 
+`originAddress`/`destinationAddress` are `Address` (`entity/Address.java`) `@Embeddable`s — each an FK to `Country`, `StateTerritory`, `TerritoryArea` (all required) and `Street` (optional), plus a `googleMapsUrl` — embedded twice via `@AssociationOverride`/`@AttributeOverride` so each trip end gets its own address without a join table.
+
 | Column | Type | Notes |
 |---|---|---|
 | id | BIGINT (PK) | |
 | user_id | INT | poster's AutoAdda user id |
 | type | VARCHAR (enum) | `OFFER` \| `SEEKER` |
-| origin_city | VARCHAR | |
-| destination_city | VARCHAR | |
+| origin_country_id / destination_country_id | BIGINT (FK -> country) | |
+| origin_state_territory_id / destination_state_territory_id | BIGINT (FK -> state_territory) | |
+| origin_territory_area_id / destination_territory_area_id | BIGINT (FK -> territory_area) | drives matching (see below) |
+| origin_street_id / destination_street_id | BIGINT (FK -> street) | optional |
+| origin_google_maps_url / destination_google_maps_url | VARCHAR(500) | optional pin link |
 | travel_date_time | DATETIME | must be in the future on create/update |
 | budget | DECIMAL(10,2) | asking price (OFFER) or max willingness (SEEKER) |
 | available_seats | INT | OFFER-only, nullable |
@@ -108,14 +121,14 @@ Both tables are created automatically by Hibernate (`spring.jpa.hibernate.ddl-au
 
 | Layer | File |
 |---|---|
-| Entities | `entity/CarpoolListing.java`, `entity/CarpoolConnection.java` |
+| Entities | `entity/CarpoolListing.java`, `entity/CarpoolConnection.java`, `entity/Address.java` (embeddable), `entity/Country.java`, `entity/StateTerritory.java`, `entity/TerritoryArea.java`, `entity/Street.java` |
 | Enums | `enums/CarpoolListingType.java`, `enums/CarpoolListingStatus.java`, `enums/CarpoolConnectionStatus.java` |
-| DAO | `dao/CarpoolListingRepository.java`, `dao/CarpoolConnectionRepository.java` |
-| DTOs | `request/CarpoolListingRequest.java`, `request/CarpoolConnectionRequest.java`, `request/CarpoolConnectionRejectionRequest.java`, `response/CarpoolListingResponse.java`, `response/CarpoolConnectionResponse.java` |
-| Mappers | `mapper/CarpoolListingMapper.java`, `mapper/CarpoolConnectionMapper.java` |
-| Services | `service/CarpoolListingService.java` + impl, `service/CarpoolConnectionService.java` + impl |
+| DAO | `dao/CarpoolListingRepository.java`, `dao/CarpoolConnectionRepository.java`, `dao/CountryRepository.java`, `dao/StateTerritoryRepository.java`, `dao/TerritoryAreaRepository.java`, `dao/StreetRepository.java` |
+| DTOs | `request/CarpoolListingRequest.java`, `request/AddressRequest.java`, `request/CountryRequest.java`, `request/StateTerritoryRequest.java`, `request/TerritoryAreaRequest.java`, `request/StreetRequest.java`, `request/CarpoolConnectionRequest.java`, `request/CarpoolConnectionRejectionRequest.java`, `response/CarpoolListingResponse.java`, `response/AddressResponse.java`, `response/CountryResponse.java`, `response/StateTerritoryResponse.java`, `response/TerritoryAreaResponse.java`, `response/StreetResponse.java`, `response/CarpoolConnectionResponse.java` |
+| Mappers | `mapper/CarpoolListingMapper.java`, `mapper/CarpoolConnectionMapper.java`, `mapper/CountryMapper.java`, `mapper/StateTerritoryMapper.java`, `mapper/TerritoryAreaMapper.java`, `mapper/StreetMapper.java` |
+| Services | `service/CarpoolListingService.java` + impl, `service/CarpoolConnectionService.java` + impl, `service/impl/CountryService.java`, `service/impl/StateTerritoryService.java`, `service/impl/TerritoryAreaService.java`, `service/impl/StreetService.java` |
 | Notifications | `service/impl/CarpoolNotificationService.java` |
 | Scheduler | `scheduler/CarpoolListingExpiryScheduler.java` (runs every `vehicle.carpool.expiry.interval-ms`, default 30 min) |
-| Controllers | `controller/CarpoolListingController.java`, `controller/CarpoolConnectionController.java` |
+| Controllers | `controller/CarpoolListingController.java`, `controller/CarpoolConnectionController.java`, `controller/CountryController.java`, `controller/StateTerritoryController.java`, `controller/TerritoryAreaController.java`, `controller/StreetController.java` |
 
 See `CARPOOL_FRONTEND_GUIDE.md` for the full REST API reference with request/response examples.

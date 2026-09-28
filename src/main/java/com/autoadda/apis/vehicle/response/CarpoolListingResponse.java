@@ -20,8 +20,8 @@ public class CarpoolListingResponse {
     private Integer userId;
     private String posterName;
     private CarpoolListingType type;
-    private String originCity;
-    private String destinationCity;
+    private AddressResponse originAddress;
+    private AddressResponse destinationAddress;
     private LocalDateTime travelDateTime;
     private BigDecimal budget;
     private Integer availableSeats;

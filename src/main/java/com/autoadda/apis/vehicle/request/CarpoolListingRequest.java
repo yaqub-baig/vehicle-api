@@ -1,8 +1,8 @@
 package com.autoadda.apis.vehicle.request;
 
 import com.autoadda.apis.vehicle.enums.CarpoolListingType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -19,11 +19,13 @@ public class CarpoolListingRequest {
     @NotNull(message = "Listing type is required")
     private CarpoolListingType type;
 
-    @NotBlank(message = "Origin city is required")
-    private String originCity;
+    @NotNull(message = "Origin address is required")
+    @Valid
+    private AddressRequest originAddress;
 
-    @NotBlank(message = "Destination city is required")
-    private String destinationCity;
+    @NotNull(message = "Destination address is required")
+    @Valid
+    private AddressRequest destinationAddress;
 
     @NotNull(message = "Travel date/time is required")
     private LocalDateTime travelDateTime;

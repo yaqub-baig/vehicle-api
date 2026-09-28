@@ -27,30 +27,32 @@ public interface CarpoolListingRepository extends JpaRepository<CarpoolListing, 
             CarpoolListingStatus status, LocalDateTime cutoff);
 
     @Query("SELECT l FROM CarpoolListing l WHERE l.type = :type AND l.status = :status AND l.isDeleted = false " +
-           "AND (:originCity IS NULL OR LOWER(l.originCity) = LOWER(:originCity)) " +
-           "AND (:destinationCity IS NULL OR LOWER(l.destinationCity) = LOWER(:destinationCity)) " +
+           "AND (:originTerritoryAreaId IS NULL OR l.originAddress.territoryArea.id = :originTerritoryAreaId) " +
+           "AND (:destinationTerritoryAreaId IS NULL OR l.destinationAddress.territoryArea.id = :destinationTerritoryAreaId) " +
            "ORDER BY l.travelDateTime ASC")
     List<CarpoolListing> browseListings(@Param("type") CarpoolListingType type,
-                                         @Param("originCity") String originCity,
-                                         @Param("destinationCity") String destinationCity,
+                                         @Param("originTerritoryAreaId") Long originTerritoryAreaId,
+                                         @Param("destinationTerritoryAreaId") Long destinationTerritoryAreaId,
                                          @Param("status") CarpoolListingStatus status);
 
     @Query("SELECT l FROM CarpoolListing l WHERE l.type = 'OFFER' AND l.status = 'ACTIVE' AND l.isDeleted = false " +
-           "AND LOWER(l.originCity) = LOWER(:originCity) AND LOWER(l.destinationCity) = LOWER(:destinationCity) " +
+           "AND l.originAddress.territoryArea.id = :originTerritoryAreaId " +
+           "AND l.destinationAddress.territoryArea.id = :destinationTerritoryAreaId " +
            "AND l.userId <> :excludeUserId AND l.budget <= :seekerBudget AND l.travelDateTime >= :now " +
            "ORDER BY l.travelDateTime ASC")
-    List<CarpoolListing> findMatchingOffersForSeeker(@Param("originCity") String originCity,
-                                                       @Param("destinationCity") String destinationCity,
+    List<CarpoolListing> findMatchingOffersForSeeker(@Param("originTerritoryAreaId") Long originTerritoryAreaId,
+                                                       @Param("destinationTerritoryAreaId") Long destinationTerritoryAreaId,
                                                        @Param("excludeUserId") Integer excludeUserId,
                                                        @Param("seekerBudget") BigDecimal seekerBudget,
                                                        @Param("now") LocalDateTime now);
 
     @Query("SELECT l FROM CarpoolListing l WHERE l.type = 'SEEKER' AND l.status = 'ACTIVE' AND l.isDeleted = false " +
-           "AND LOWER(l.originCity) = LOWER(:originCity) AND LOWER(l.destinationCity) = LOWER(:destinationCity) " +
+           "AND l.originAddress.territoryArea.id = :originTerritoryAreaId " +
+           "AND l.destinationAddress.territoryArea.id = :destinationTerritoryAreaId " +
            "AND l.userId <> :excludeUserId AND l.budget >= :offerPricePerSeat AND l.travelDateTime >= :now " +
            "ORDER BY l.travelDateTime ASC")
-    List<CarpoolListing> findMatchingSeekersForOffer(@Param("originCity") String originCity,
-                                                       @Param("destinationCity") String destinationCity,
+    List<CarpoolListing> findMatchingSeekersForOffer(@Param("originTerritoryAreaId") Long originTerritoryAreaId,
+                                                       @Param("destinationTerritoryAreaId") Long destinationTerritoryAreaId,
                                                        @Param("excludeUserId") Integer excludeUserId,
                                                        @Param("offerPricePerSeat") BigDecimal offerPricePerSeat,
                                                        @Param("now") LocalDateTime now);

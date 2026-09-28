@@ -293,7 +293,9 @@ public class CarpoolNotificationService {
         if (listing == null) {
             return "your carpool trip";
         }
-        return String.format("%s to %s on %s", listing.getOriginCity(), listing.getDestinationCity(),
+        return String.format("%s to %s on %s",
+                listing.getOriginAddress().getTerritoryArea().getName(),
+                listing.getDestinationAddress().getTerritoryArea().getName(),
                 listing.getTravelDateTime());
     }
 }

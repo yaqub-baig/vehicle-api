@@ -1,9 +1,18 @@
 package com.autoadda.apis.vehicle.mapper;
 
 import com.autoadda.apis.vehicle.clients.AuthClient;
+import com.autoadda.apis.vehicle.dao.CountryRepository;
+import com.autoadda.apis.vehicle.dao.StateTerritoryRepository;
+import com.autoadda.apis.vehicle.dao.StreetRepository;
+import com.autoadda.apis.vehicle.dao.TerritoryAreaRepository;
+import com.autoadda.apis.vehicle.entity.Address;
 import com.autoadda.apis.vehicle.entity.CarpoolListing;
+import com.autoadda.apis.vehicle.entity.Street;
 import com.autoadda.apis.vehicle.enums.CarpoolListingStatus;
+import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
+import com.autoadda.apis.vehicle.request.AddressRequest;
 import com.autoadda.apis.vehicle.request.CarpoolListingRequest;
+import com.autoadda.apis.vehicle.response.AddressResponse;
 import com.autoadda.apis.vehicle.response.CarpoolListingResponse;
 import com.autoadda.apis.vehicle.response.UserResponse;
 import lombok.RequiredArgsConstructor;
@@ -18,13 +27,21 @@ import java.util.List;
 public class CarpoolListingMapper {
 
     private final AuthClient authClient;
+    private final CountryRepository countryRepository;
+    private final StateTerritoryRepository stateTerritoryRepository;
+    private final TerritoryAreaRepository territoryAreaRepository;
+    private final StreetRepository streetRepository;
+    private final CountryMapper countryMapper;
+    private final StateTerritoryMapper stateTerritoryMapper;
+    private final TerritoryAreaMapper territoryAreaMapper;
+    private final StreetMapper streetMapper;
 
     public CarpoolListing toEntity(CarpoolListingRequest request, Integer userId) {
         return CarpoolListing.builder()
                 .userId(userId)
                 .type(request.getType())
-                .originCity(request.getOriginCity())
-                .destinationCity(request.getDestinationCity())
+                .originAddress(toAddress(request.getOriginAddress()))
+                .destinationAddress(toAddress(request.getDestinationAddress()))
                 .travelDateTime(request.getTravelDateTime())
                 .budget(request.getBudget())
                 .availableSeats(request.getAvailableSeats())
@@ -36,12 +53,43 @@ public class CarpoolListingMapper {
 
     public void applyUpdate(CarpoolListing entity, CarpoolListingRequest request) {
         entity.setType(request.getType());
-        entity.setOriginCity(request.getOriginCity());
-        entity.setDestinationCity(request.getDestinationCity());
+        entity.setOriginAddress(toAddress(request.getOriginAddress()));
+        entity.setDestinationAddress(toAddress(request.getDestinationAddress()));
         entity.setTravelDateTime(request.getTravelDateTime());
         entity.setBudget(request.getBudget());
         entity.setAvailableSeats(request.getAvailableSeats());
         entity.setCarDescription(request.getCarDescription());
+    }
+
+    private Address toAddress(AddressRequest request) {
+        Street street = request.getStreetId() != null
+                ? streetRepository.findById(request.getStreetId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Street not found"))
+                : null;
+
+        return Address.builder()
+                .country(countryRepository.findById(request.getCountryId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Country not found")))
+                .stateTerritory(stateTerritoryRepository.findById(request.getStateTerritoryId())
+                        .orElseThrow(() -> new ResourceNotFoundException("State/territory not found")))
+                .territoryArea(territoryAreaRepository.findById(request.getTerritoryAreaId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Territory area not found")))
+                .street(street)
+                .googleMapsUrl(request.getGoogleMapsUrl())
+                .build();
+    }
+
+    private AddressResponse toAddressResponse(Address address) {
+        if (address == null) {
+            return null;
+        }
+        return AddressResponse.builder()
+                .country(countryMapper.toResponse(address.getCountry()))
+                .stateTerritory(stateTerritoryMapper.toResponse(address.getStateTerritory()))
+                .territoryArea(territoryAreaMapper.toResponse(address.getTerritoryArea()))
+                .street(streetMapper.toResponse(address.getStreet()))
+                .googleMapsUrl(address.getGoogleMapsUrl())
+                .build();
     }
 
     public CarpoolListingResponse toResponse(CarpoolListing entity) {
@@ -53,8 +101,8 @@ public class CarpoolListingMapper {
                 .id(entity.getId())
                 .userId(entity.getUserId())
                 .type(entity.getType())
-                .originCity(entity.getOriginCity())
-                .destinationCity(entity.getDestinationCity())
+                .originAddress(toAddressResponse(entity.getOriginAddress()))
+                .destinationAddress(toAddressResponse(entity.getDestinationAddress()))
                 .travelDateTime(entity.getTravelDateTime())
                 .budget(entity.getBudget())
                 .availableSeats(entity.getAvailableSeats())
