@@ -8,9 +8,13 @@ import com.autoadda.apis.vehicle.entity.CarpoolListing;
 import com.autoadda.apis.vehicle.enums.CarpoolConnectionStatus;
 import com.autoadda.apis.vehicle.enums.CarpoolListingStatus;
 import com.autoadda.apis.vehicle.enums.CarpoolListingType;
+import com.autoadda.apis.vehicle.exception.InvalidInputException;
 import com.autoadda.apis.vehicle.mapper.CarpoolConnectionMapper;
+import com.autoadda.apis.vehicle.mapper.CarpoolListingMapper;
 import com.autoadda.apis.vehicle.request.CarpoolConnectionRejectionRequest;
 import com.autoadda.apis.vehicle.request.CarpoolConnectionRequest;
+import com.autoadda.apis.vehicle.request.CarpoolListingRequest;
+import com.autoadda.apis.vehicle.request.ImplicitCarpoolListingRequest;
 import com.autoadda.apis.vehicle.response.CarpoolConnectionResponse;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.service.CarpoolConnectionService;
@@ -35,6 +39,7 @@ public class CarpoolConnectionServiceImpl implements CarpoolConnectionService {
     private final CarpoolConnectionRepository connectionRepository;
     private final CarpoolListingRepository listingRepository;
     private final CarpoolConnectionMapper connectionMapper;
+    private final CarpoolListingMapper listingMapper;
     private final CarpoolNotificationService notificationService;
 
     @Override
@@ -43,10 +48,14 @@ public class CarpoolConnectionServiceImpl implements CarpoolConnectionService {
         log.info("Creating carpool connection request from listing {} to listing {} by user {}",
                 request.getRequesterListingId(), request.getTargetListingId(), requesterUserId);
 
-        Optional<CarpoolListing> requesterListingOpt =
-                listingRepository.findByIdAndIsDeletedFalse(request.getRequesterListingId());
-        if (requesterListingOpt.isEmpty()) {
-            return GenericResponse.builder().status(ERROR).code("404").message("Your listing was not found").build();
+        boolean hasListingId = request.getRequesterListingId() != null;
+        boolean hasImplicitDetails = request.getRequesterListingDetails() != null;
+        if (hasListingId == hasImplicitDetails) {
+            return GenericResponse.builder()
+                    .status(ERROR)
+                    .code("400")
+                    .message("Provide exactly one of requesterListingId or requesterListingDetails")
+                    .build();
         }
 
         Optional<CarpoolListing> targetListingOpt =
@@ -54,9 +63,29 @@ public class CarpoolConnectionServiceImpl implements CarpoolConnectionService {
         if (targetListingOpt.isEmpty()) {
             return GenericResponse.builder().status(ERROR).code("404").message("Target listing was not found").build();
         }
-
-        CarpoolListing requesterListing = requesterListingOpt.get();
         CarpoolListing targetListing = targetListingOpt.get();
+
+        CarpoolListing requesterListing;
+        if (hasListingId) {
+            Optional<CarpoolListing> requesterListingOpt =
+                    listingRepository.findByIdAndIsDeletedFalse(request.getRequesterListingId());
+            if (requesterListingOpt.isEmpty()) {
+                return GenericResponse.builder().status(ERROR).code("404").message("Your listing was not found").build();
+            }
+            requesterListing = requesterListingOpt.get();
+        } else {
+            if (requesterUserId.equals(targetListing.getUserId())) {
+                return GenericResponse.builder()
+                        .status(ERROR)
+                        .code("400")
+                        .message("Cannot connect to your own listing")
+                        .build();
+            }
+            CarpoolListingType impliedType = targetListing.getType() == CarpoolListingType.OFFER
+                    ? CarpoolListingType.SEEKER : CarpoolListingType.OFFER;
+            requesterListing = createImplicitRequesterListing(impliedType, targetListing.getTravelDateTime(),
+                    request.getRequesterListingDetails(), requesterUserId);
+        }
 
         if (!requesterListing.getUserId().equals(requesterUserId)) {
             return GenericResponse.builder()
@@ -99,8 +128,8 @@ public class CarpoolConnectionServiceImpl implements CarpoolConnectionService {
                     .build();
         }
 
-        boolean alreadyRequested = connectionRepository.existsByRequesterListingIdAndTargetListingIdAndStatusInAndIsDeletedFalse(
-                requesterListing.getId(), targetListing.getId(),
+        boolean alreadyRequested = connectionRepository.existsByRequesterUserIdAndTargetListingIdAndStatusInAndIsDeletedFalse(
+                requesterUserId, targetListing.getId(),
                 List.of(CarpoolConnectionStatus.PENDING, CarpoolConnectionStatus.ACCEPTED));
         if (alreadyRequested) {
             return GenericResponse.builder()
@@ -329,6 +358,33 @@ public class CarpoolConnectionServiceImpl implements CarpoolConnectionService {
         return a.getTerritoryArea().getId().equals(b.getTerritoryArea().getId())
                 && a.getStateTerritory().getId().equals(b.getStateTerritory().getId())
                 && a.getCountry().getId().equals(b.getCountry().getId());
+    }
+
+    /**
+     * Backs a connection request sent without the requester having posted their own listing.
+     * Always creates a new, non-discoverable CarpoolListing - never reuses/amends an existing
+     * one, since budget/route are read live off the listing and mutating a listing already tied
+     * to another pending connection would silently change that connection's terms.
+     */
+    private CarpoolListing createImplicitRequesterListing(CarpoolListingType type, LocalDateTime travelDateTime,
+                                                            ImplicitCarpoolListingRequest details, Integer userId) {
+        if (type == CarpoolListingType.OFFER
+                && (details.getAvailableSeats() == null || details.getAvailableSeats() <= 0)) {
+            throw new InvalidInputException("Available seats are required for an offer listing");
+        }
+
+        CarpoolListingRequest listingRequest = new CarpoolListingRequest();
+        listingRequest.setType(type);
+        listingRequest.setOriginAddress(details.getOriginAddress());
+        listingRequest.setDestinationAddress(details.getDestinationAddress());
+        listingRequest.setTravelDateTime(travelDateTime);
+        listingRequest.setBudget(details.getBudget());
+        listingRequest.setAvailableSeats(type == CarpoolListingType.OFFER ? details.getAvailableSeats() : null);
+        listingRequest.setCarDescription(type == CarpoolListingType.OFFER ? details.getCarDescription() : null);
+
+        CarpoolListing listing = listingMapper.toEntity(listingRequest, userId);
+        listing.setDiscoverable(false);
+        return listingRepository.save(listing);
     }
 
     private CarpoolConnectionResponse mapConnection(CarpoolConnection connection) {

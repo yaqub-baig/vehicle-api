@@ -18,15 +18,16 @@ public interface CarpoolListingRepository extends JpaRepository<CarpoolListing, 
 
     Optional<CarpoolListing> findByIdAndIsDeletedFalse(Long id);
 
-    List<CarpoolListing> findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(Integer userId);
+    List<CarpoolListing> findByUserIdAndDiscoverableTrueAndIsDeletedFalseOrderByCreatedAtDesc(Integer userId);
 
-    List<CarpoolListing> findByUserIdAndTypeAndIsDeletedFalseOrderByCreatedAtDesc(
+    List<CarpoolListing> findByUserIdAndTypeAndDiscoverableTrueAndIsDeletedFalseOrderByCreatedAtDesc(
             Integer userId, CarpoolListingType type);
 
     List<CarpoolListing> findByStatusAndTravelDateTimeBeforeAndIsDeletedFalse(
             CarpoolListingStatus status, LocalDateTime cutoff);
 
     @Query("SELECT l FROM CarpoolListing l WHERE l.type = :type AND l.status = :status AND l.isDeleted = false " +
+           "AND l.discoverable = true " +
            "AND (:originTerritoryAreaId IS NULL OR l.originAddress.territoryArea.id = :originTerritoryAreaId) " +
            "AND (:destinationTerritoryAreaId IS NULL OR l.destinationAddress.territoryArea.id = :destinationTerritoryAreaId) " +
            "ORDER BY l.travelDateTime ASC")
@@ -36,6 +37,7 @@ public interface CarpoolListingRepository extends JpaRepository<CarpoolListing, 
                                          @Param("status") CarpoolListingStatus status);
 
     @Query("SELECT l FROM CarpoolListing l WHERE l.type = 'OFFER' AND l.status = 'ACTIVE' AND l.isDeleted = false " +
+           "AND l.discoverable = true " +
            "AND l.originAddress.territoryArea.id = :originTerritoryAreaId " +
            "AND l.destinationAddress.territoryArea.id = :destinationTerritoryAreaId " +
            "AND l.userId <> :excludeUserId AND l.budget <= :seekerBudget AND l.travelDateTime >= :now " +
@@ -47,6 +49,7 @@ public interface CarpoolListingRepository extends JpaRepository<CarpoolListing, 
                                                        @Param("now") LocalDateTime now);
 
     @Query("SELECT l FROM CarpoolListing l WHERE l.type = 'SEEKER' AND l.status = 'ACTIVE' AND l.isDeleted = false " +
+           "AND l.discoverable = true " +
            "AND l.originAddress.territoryArea.id = :originTerritoryAreaId " +
            "AND l.destinationAddress.territoryArea.id = :destinationTerritoryAreaId " +
            "AND l.userId <> :excludeUserId AND l.budget >= :offerPricePerSeat AND l.travelDateTime >= :now " +

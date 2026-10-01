@@ -24,8 +24,8 @@ public interface CarpoolConnectionRepository extends JpaRepository<CarpoolConnec
     List<CarpoolConnection> findAllForUserAndStatus(@Param("userId") Integer userId,
                                                       @Param("status") CarpoolConnectionStatus status);
 
-    boolean existsByRequesterListingIdAndTargetListingIdAndStatusInAndIsDeletedFalse(
-            Long requesterListingId, Long targetListingId, List<CarpoolConnectionStatus> statuses);
+    boolean existsByRequesterUserIdAndTargetListingIdAndStatusInAndIsDeletedFalse(
+            Integer requesterUserId, Long targetListingId, List<CarpoolConnectionStatus> statuses);
 
     List<CarpoolConnection> findByStatusAndIsDeletedFalse(CarpoolConnectionStatus status);
 }

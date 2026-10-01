@@ -78,6 +78,11 @@ public class CarpoolListing {
     @Column(name = "is_deleted")
     private Boolean isDeleted;
 
+    // false for a listing auto-created to back a direct connection request (no listing of the
+    // user's own) - kept out of browse/matches/my-listings since the owner never posted it.
+    @Column(name = "discoverable")
+    private Boolean discoverable;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -87,6 +92,9 @@ public class CarpoolListing {
         }
         if (status == null) {
             status = CarpoolListingStatus.ACTIVE;
+        }
+        if (discoverable == null) {
+            discoverable = true;
         }
     }
 
