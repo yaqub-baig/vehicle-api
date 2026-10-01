@@ -167,8 +167,8 @@ public class CarpoolListingServiceImpl implements CarpoolListingService {
     @Override
     public GenericResponse getMyListings(Integer userId, CarpoolListingType typeFilter) {
         List<CarpoolListing> listings = typeFilter != null
-                ? listingRepository.findByUserIdAndTypeAndIsDeletedFalseOrderByCreatedAtDesc(userId, typeFilter)
-                : listingRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId);
+                ? listingRepository.findByUserIdAndTypeAndDiscoverableTrueAndIsDeletedFalseOrderByCreatedAtDesc(userId, typeFilter)
+                : listingRepository.findByUserIdAndDiscoverableTrueAndIsDeletedFalseOrderByCreatedAtDesc(userId);
 
         return GenericResponse.builder()
                 .status(SUCCESS)

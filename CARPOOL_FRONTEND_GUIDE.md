@@ -8,6 +8,8 @@ All endpoints require the `X-Auto-Adda-Id` header (the caller's AutoAdda user id
 
 A carpool listing's origin/destination is now a structured address (`country -> state/territory -> territory area -> street`), not a free-text city string — see [Address Lookups](#address-lookups) below for how to populate cascading dropdowns and resolve the ids a listing needs.
 
+`POST /carpool-connections` can now be called **without** posting your own listing first — see `CARPOOL_DIRECT_REQUEST_GUIDE.md` for the old vs. new flow, when to use which, and worked examples from both the rider's and driver's perspective.
+
 ---
 
 ## API Service
@@ -124,11 +126,24 @@ export const browseListings = async (type, originTerritoryAreaId, destinationTer
 // CONNECTIONS
 // ============================================
 
-export const connect = async (userId, requesterListingId, targetListingId, message = null) => {
+// Connect using a listing you've already posted
+export const connectFromListing = async (userId, requesterListingId, targetListingId, message = null) => {
   const response = await fetch(CONNECTIONS_URL, {
     method: 'POST',
     headers: getHeaders(userId),
     body: JSON.stringify({ requesterListingId, targetListingId, message })
+  });
+  return response.json();
+};
+
+// Connect without posting your own listing first - the server creates a hidden
+// listing behind the scenes. requesterListingDetails: { originAddress, destinationAddress,
+// budget, availableSeats?, carDescription? } - see CARPOOL_DIRECT_REQUEST_GUIDE.md
+export const connectDirect = async (userId, targetListingId, requesterListingDetails, message = null) => {
+  const response = await fetch(CONNECTIONS_URL, {
+    method: 'POST',
+    headers: getHeaders(userId),
+    body: JSON.stringify({ targetListingId, requesterListingDetails, message })
   });
   return response.json();
 };
@@ -206,7 +221,7 @@ Used to populate cascading dropdowns when a user is entering a pickup/drop addre
 
 | Method | Path | Auth header | Notes |
 |---|---|---|---|
-| POST | `/` | required | requester must own `requesterListingId` |
+| POST | `/` | required | `requesterListingId` **or** `requesterListingDetails`, not both — see `CARPOOL_DIRECT_REQUEST_GUIDE.md` |
 | PUT | `/{id}/accept` | required, must be target | reveals contact info |
 | PUT | `/{id}/reject` | required, must be target | optional `rejectionReason` body |
 | PUT | `/{id}/cancel` | required, must be requester | only while `PENDING` |
@@ -253,14 +268,14 @@ Used to populate cascading dropdowns when a user is entering a pickup/drop addre
     "posterName": "Ali Raza",
     "type": "OFFER",
     "originAddress": {
-      "country": { "id": 1, "code": "AE", "name": "United Arab Emirates", "isActive": true },
-      "stateTerritory": { "id": 2, "code": "DUBAI", "name": "Dubai", "isActive": true, "country": { "id": 1, "code": "AE", "name": "United Arab Emirates", "isActive": true } },
+      "country": { "id": 1, "code": "UAE", "name": "United Arab Emirates", "isActive": true },
+      "stateTerritory": { "id": 2, "code": "DUBAI", "name": "Dubai", "isActive": true, "country": { "id": 1, "code": "UAE", "name": "United Arab Emirates", "isActive": true } },
       "territoryArea": { "id": 15, "code": "AL_BARSHA", "name": "Al Barsha", "isActive": true, "stateTerritory": { "...": "..." } },
       "street": { "id": 102, "code": "12A", "name": null, "isActive": true, "territoryArea": { "...": "..." } },
       "googleMapsUrl": "https://maps.google.com/?q=25.1122,55.2003"
     },
     "destinationAddress": {
-      "country": { "id": 1, "code": "AE", "name": "United Arab Emirates", "isActive": true },
+      "country": { "id": 1, "code": "UAE", "name": "United Arab Emirates", "isActive": true },
       "stateTerritory": { "id": 2, "code": "DUBAI", "name": "Dubai", "isActive": true, "country": { "...": "..." } },
       "territoryArea": { "id": 22, "code": "DEIRA", "name": "Deira", "isActive": true, "stateTerritory": { "...": "..." } },
       "street": null,
@@ -327,6 +342,7 @@ All errors are returned with HTTP 200 and `status: "error"` (or `"failed"` for f
 | Connecting to your own listing | 400 | Cannot connect to your own listing |
 | Connecting same-type listings | 400 | Can only connect to the opposite listing type |
 | Incompatible route/budget | 400 | These listings are not compatible for connecting |
-| Duplicate connect request | 400 | A connection request already exists between these listings |
+| Duplicate connect request (one PENDING/ACCEPTED request per user per target, regardless of which listing) | 400 | A connection request already exists between these listings |
+| Both or neither of requesterListingId/requesterListingDetails given | 400 | Provide exactly one of requesterListingId or requesterListingDetails |
 | Responding to a resolved request | 400 | This connection request has already been responded to |
 | Non-participant reading a connection | 403 | You are not a participant in this connection request |

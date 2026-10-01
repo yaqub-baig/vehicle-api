@@ -15,8 +15,8 @@
 -- This script only seeds starting reference data and backfills existing rows.
 --
 -- WHAT THIS SCRIPT DOES
---   1. Seeds one country row: AE / United Arab Emirates.
---   2. Seeds the 7 emirates as state_territory rows under AE.
+--   1. Seeds one country row: UAE / United Arab Emirates.
+--   2. Seeds the 7 emirates as state_territory rows under UAE.
 --   3. For every distinct existing origin_city/destination_city value that has no
 --      matching territory_area yet, creates one - defaulting its state_territory to
 --      DUBAI. This is a best-effort placeholder so existing listings keep working;
@@ -44,9 +44,19 @@
 -- SAFE TO RE-RUN: yes (every INSERT is guarded with WHERE NOT EXISTS).
 -- =============================================================================
 
+-- Two UPDATE statements below don't filter on a key column of the table they update,
+-- which MySQL Workbench's "safe update mode" (sql_safe_updates) rejects by default
+-- (Error Code: 1175). Disable it for this script, then restore it at the end.
+SET @prior_sql_safe_updates = @@SESSION.sql_safe_updates;
+SET SQL_SAFE_UPDATES = 0;
+
+-- Renames an already-seeded AE row from an earlier run of this script to UAE, so the
+-- INSERT below (guarded on code = 'UAE') doesn't create a duplicate country row.
+UPDATE country SET code = 'UAE' WHERE code = 'AE';
+
 INSERT INTO country (code, name, is_active, created_at, updated_at)
-SELECT 'AE', 'United Arab Emirates', 1, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM country WHERE code = 'AE');
+SELECT 'UAE', 'United Arab Emirates', 1, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM country WHERE code = 'UAE');
 
 INSERT INTO state_territory (code, name, country_id, is_active, created_at, updated_at)
 SELECT v.code, v.name, c.id, 1, NOW(), NOW()
@@ -59,7 +69,7 @@ FROM (
     UNION ALL SELECT 'RAS_AL_KHAIMAH', 'Ras Al Khaimah'
     UNION ALL SELECT 'FUJAIRAH', 'Fujairah'
 ) v
-JOIN country c ON c.code = 'AE'
+JOIN country c ON c.code = 'UAE'
 WHERE NOT EXISTS (
     SELECT 1 FROM state_territory st WHERE st.country_id = c.id AND st.code = v.code
 );
@@ -93,11 +103,13 @@ SET l.origin_country_id = oc.id,
     l.destination_territory_area_id = dta.id
 WHERE l.origin_territory_area_id IS NULL OR l.destination_territory_area_id IS NULL;
 
+SET SQL_SAFE_UPDATES = @prior_sql_safe_updates;
+
 -- =============================================================================
 -- VERIFY (run these to confirm)
 -- =============================================================================
 -- SELECT COUNT(*) AS listings_missing_territory_area
 --   FROM carpool_listing
 --   WHERE origin_territory_area_id IS NULL OR destination_territory_area_id IS NULL;  -- expect 0
--- SELECT code, name FROM state_territory WHERE country_id = (SELECT id FROM country WHERE code = 'AE');
+-- SELECT code, name FROM state_territory WHERE country_id = (SELECT id FROM country WHERE code = 'UAE');
 -- SELECT ta.name, st.name AS state, ta.id FROM territory_area ta JOIN state_territory st ON st.id = ta.state_territory_id;
