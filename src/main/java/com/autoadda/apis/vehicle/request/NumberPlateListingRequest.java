@@ -18,11 +18,14 @@ public class NumberPlateListingRequest {
     @NotBlank(message = "Plate number is required")
     private String plateNumber;
 
-    @NotBlank(message = "Emirate is required")
-    private String emirate;
+    @NotNull(message = "Plate source is required")
+    private Long plateSourceId;
 
-    @NotBlank(message = "Category is required")
-    private String category;
+    @NotNull(message = "Plate type is required")
+    private Long plateTypeId;
+
+    // Required only when the selected plate type has codes.
+    private Long plateCodeId;
 
     @NotNull(message = "Expected price is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Expected price must be greater than zero")

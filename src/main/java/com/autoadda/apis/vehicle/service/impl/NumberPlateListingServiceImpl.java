@@ -168,8 +168,10 @@ public class NumberPlateListingServiceImpl implements NumberPlateListingService 
     }
 
     @Override
-    public GenericResponse browseListings(String emirate, String category, BigDecimal minPrice, BigDecimal maxPrice) {
-        List<NumberPlateListing> listings = listingRepository.browseListings(emirate, category, minPrice, maxPrice);
+    public GenericResponse browseListings(Long plateSourceId, Long plateTypeId, Long plateCodeId,
+                                          BigDecimal minPrice, BigDecimal maxPrice) {
+        List<NumberPlateListing> listings = listingRepository.browseListings(plateSourceId, plateTypeId, plateCodeId,
+                minPrice, maxPrice);
 
         return GenericResponse.builder()
                 .status(SUCCESS)

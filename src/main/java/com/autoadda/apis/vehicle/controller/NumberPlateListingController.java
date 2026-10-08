@@ -82,14 +82,15 @@ public class NumberPlateListingController {
 
     /**
      * Browse active listings, optionally filtered
-     * GET /number-plate-listings/browse?emirate=Dubai&category=Private&minPrice=1000&maxPrice=50000
+     * GET /number-plate-listings/browse?plateSourceId=2&plateTypeId=14&plateCodeId=30&minPrice=1000&maxPrice=50000
      */
     @GetMapping("/browse")
     public GenericResponse browse(
-            @RequestParam(required = false) String emirate,
-            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Long plateSourceId,
+            @RequestParam(required = false) Long plateTypeId,
+            @RequestParam(required = false) Long plateCodeId,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice) {
-        return listingService.browseListings(emirate, category, minPrice, maxPrice);
+        return listingService.browseListings(plateSourceId, plateTypeId, plateCodeId, minPrice, maxPrice);
     }
 }
