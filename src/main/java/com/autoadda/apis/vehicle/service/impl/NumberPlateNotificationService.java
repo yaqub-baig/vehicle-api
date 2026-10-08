@@ -290,6 +290,9 @@ public class NumberPlateNotificationService {
         if (listing == null) {
             return "your number plate";
         }
-        return String.format("%s (%s)", listing.getPlateNumber(), listing.getEmirate());
+        if (listing.getPlateSource() == null) {
+            return listing.getPlateNumber();
+        }
+        return String.format("%s (%s)", listing.getPlateNumber(), listing.getPlateSource().getName());
     }
 }

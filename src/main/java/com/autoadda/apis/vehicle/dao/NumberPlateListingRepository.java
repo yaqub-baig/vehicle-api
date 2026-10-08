@@ -18,13 +18,15 @@ public interface NumberPlateListingRepository extends JpaRepository<NumberPlateL
     List<NumberPlateListing> findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(Integer userId);
 
     @Query("SELECT l FROM NumberPlateListing l WHERE l.status = 'ACTIVE' AND l.isDeleted = false " +
-           "AND (:emirate IS NULL OR LOWER(l.emirate) = LOWER(:emirate)) " +
-           "AND (:category IS NULL OR LOWER(l.category) = LOWER(:category)) " +
+           "AND (:plateSourceId IS NULL OR l.plateSource.id = :plateSourceId) " +
+           "AND (:plateTypeId IS NULL OR l.plateType.id = :plateTypeId) " +
+           "AND (:plateCodeId IS NULL OR l.plateCode.id = :plateCodeId) " +
            "AND (:minPrice IS NULL OR l.expectedPrice >= :minPrice) " +
            "AND (:maxPrice IS NULL OR l.expectedPrice <= :maxPrice) " +
            "ORDER BY l.createdAt DESC")
-    List<NumberPlateListing> browseListings(@Param("emirate") String emirate,
-                                             @Param("category") String category,
+    List<NumberPlateListing> browseListings(@Param("plateSourceId") Long plateSourceId,
+                                             @Param("plateTypeId") Long plateTypeId,
+                                             @Param("plateCodeId") Long plateCodeId,
                                              @Param("minPrice") BigDecimal minPrice,
                                              @Param("maxPrice") BigDecimal maxPrice);
 }

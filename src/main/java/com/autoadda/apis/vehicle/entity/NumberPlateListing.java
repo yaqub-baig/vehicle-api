@@ -31,11 +31,20 @@ public class NumberPlateListing {
     @Column(name = "plate_number", nullable = false)
     private String plateNumber;
 
-    @Column(name = "emirate", nullable = false)
-    private String emirate;
+    // The old free-text emirate/category columns are left in the table (nullable, unused)
+    // until the plate master backfill is verified - see migrations/2026-10-08_*.
+    @ManyToOne
+    @JoinColumn(name = "plate_source_id")
+    private PlateSource plateSource;
 
-    @Column(name = "category", nullable = false)
-    private String category;
+    @ManyToOne
+    @JoinColumn(name = "plate_type_id")
+    private PlateType plateType;
+
+    // Null for plate types that have no codes (e.g. Government).
+    @ManyToOne
+    @JoinColumn(name = "plate_code_id")
+    private PlateCode plateCode;
 
     @Column(name = "expected_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal expectedPrice;

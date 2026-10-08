@@ -21,8 +21,9 @@ public class NumberPlateListingResponse {
     private Integer userId;
     private String sellerName;
     private String plateNumber;
-    private String emirate;
-    private String category;
+    private PlateRefResponse plateSource;
+    private PlateRefResponse plateType;
+    private PlateRefResponse plateCode;
     private BigDecimal expectedPrice;
     private String description;
     private List<MediaFile> images;

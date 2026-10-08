@@ -6,7 +6,9 @@ This guide covers integrating the Number Plate For Sale feature into the AutoAdd
 
 All endpoints require the `X-Auto-Adda-Id` header (the caller's AutoAdda user id) except the public read endpoints (`GET /number-plate-listings/{id}`, `GET /number-plate-listings/browse`).
 
-A seller uploads a plate listing (plate number, emirate, category, expected price, description, optional photos). Any other user can browse listings and express interest. The seller decides per-interest whether to accept or reject it; **accepting one interest does not close the listing or affect any other interest on it** — the seller closes the listing manually (mark sold / cancel) whenever they're done, independent of how many interests they've accepted. Buyer/seller contact details are only ever included in an interest response once that specific interest is `ACCEPTED`.
+A plate is identified by a three-level master hierarchy: **plate source** (the issuing emirate, e.g. Dubai) → **plate type** (Private, Taxi, … — each source has its own set) → **plate code** (A, 1, WHITE, … — each type has its own set; some types have **no codes**). Load the whole tree once from `GET /plate-sources/tree` to build cascading dropdowns, and send the selected ids on the listing.
+
+A seller uploads a plate listing (plate number, plate source/type/code, expected price, description, optional photos). Any other user can browse listings and express interest. The seller decides per-interest whether to accept or reject it; **accepting one interest does not close the listing or affect any other interest on it** — the seller closes the listing manually (mark sold / cancel) whenever they're done, independent of how many interests they've accepted. Buyer/seller contact details are only ever included in an interest response once that specific interest is `ACCEPTED`.
 
 ---
 
@@ -18,6 +20,18 @@ import API_BASE_URL, { getHeaders } from '../config/api';
 
 const LISTINGS_URL = `${API_BASE_URL}/number-plate-listings`;
 const INTERESTS_URL = `${API_BASE_URL}/number-plate-interests`;
+
+// ============================================
+// PLATE MASTER DATA
+// ============================================
+
+// Full source -> type -> code tree in one call, no auth header required.
+// body: [{ id, code, name, plateTypes: [{ id, code, name, plateCodes: [{ id, code }] }] }]
+// A type with plateCodes: [] takes no code - hide the code dropdown and send plateCodeId: null.
+export const getPlateMasterTree = async () => {
+  const response = await fetch(`${API_BASE_URL}/plate-sources/tree`);
+  return response.json();
+};
 
 // ============================================
 // LISTINGS
@@ -42,8 +56,9 @@ export const createListing = async (userId, data) => {
     headers: getHeaders(userId),
     body: JSON.stringify({
       plateNumber: data.plateNumber,
-      emirate: data.emirate,
-      category: data.category,
+      plateSourceId: data.plateSourceId,
+      plateTypeId: data.plateTypeId,
+      plateCodeId: data.plateCodeId ?? null, // required iff the selected type has codes
       expectedPrice: data.expectedPrice,
       description: data.description || null,
       imageIds: data.imageIds || []   // optional - [] or omit if no photos
@@ -90,10 +105,11 @@ export const getMyListings = async (userId) => {
 };
 
 // Public browse, no auth header required. All filters optional.
-export const browseListings = async ({ emirate, category, minPrice, maxPrice } = {}) => {
+export const browseListings = async ({ plateSourceId, plateTypeId, plateCodeId, minPrice, maxPrice } = {}) => {
   const params = new URLSearchParams();
-  if (emirate) params.set('emirate', emirate);
-  if (category) params.set('category', category);
+  if (plateSourceId) params.set('plateSourceId', plateSourceId);
+  if (plateTypeId) params.set('plateTypeId', plateTypeId);
+  if (plateCodeId) params.set('plateCodeId', plateCodeId);
   if (minPrice != null) params.set('minPrice', minPrice);
   if (maxPrice != null) params.set('maxPrice', maxPrice);
   const query = params.toString() ? `?${params}` : '';
@@ -167,17 +183,29 @@ export const getInterestsForListing = async (userId, listingId) => {
 
 ## Endpoint Reference
 
+### Plate master data — `/plate-sources`, `/plate-types`, `/plate-codes`
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/plate-sources/tree` | full active hierarchy, for dropdowns |
+| GET | `/plate-sources` | active sources |
+| GET | `/plate-types?plateSourceId=` | active types, optionally for one source |
+| GET | `/plate-codes?plateTypeId=` | active codes, optionally for one type |
+| POST / PUT `/{id}` / DELETE `/{id}` | on each of the three | admin CRUD; DELETE is a soft delete (`isActive=false`); duplicate `code` under the same parent → 409 |
+
+Create/update bodies: `{ code, name, displayOrder }` for sources, `{ code, name, plateSourceId, displayOrder }` for types, `{ code, plateTypeId, displayOrder }` for codes.
+
 ### Listings — `/number-plate-listings`
 
 | Method | Path | Auth header | Notes |
 |---|---|---|---|
-| POST | `/` | required | `imageIds` optional |
+| POST | `/` | required | `imageIds` optional; 400 if the type isn't under the source, the code isn't under the type, a code is missing for a type that has codes, or a code is sent for a type that has none |
 | PUT | `/{id}` | required, must own listing | only while `ACTIVE` |
 | PUT | `/{id}/sold` | required, must own listing | only while `ACTIVE`; manual action, never automatic |
 | PUT | `/{id}/cancel` | required, must own listing | only while `ACTIVE` |
 | GET | `/{id}` | none | public read |
 | GET | `/my-listings` | required | seller's own listings |
-| GET | `/browse?emirate=&category=&minPrice=&maxPrice=` | none | public browse, all filters optional |
+| GET | `/browse?plateSourceId=&plateTypeId=&plateCodeId=&minPrice=&maxPrice=` | none | public browse, all filters optional |
 
 ### Interests — `/number-plate-interests`
 
@@ -199,8 +227,9 @@ export const getInterestsForListing = async (userId, listingId) => {
 ```json
 {
   "plateNumber": "A 12345",
-  "emirate": "Dubai",
-  "category": "Private",
+  "plateSourceId": 2,
+  "plateTypeId": 14,
+  "plateCodeId": 27,
   "expectedPrice": 25000,
   "description": "Single digit... just kidding, clean 5-digit plate, no accidents.",
   "imageIds": [88]
@@ -218,8 +247,9 @@ export const getInterestsForListing = async (userId, listingId) => {
     "userId": 101,
     "sellerName": "Ali Raza",
     "plateNumber": "A 12345",
-    "emirate": "Dubai",
-    "category": "Private",
+    "plateSource": { "id": 2, "code": "DUBAI", "name": "Dubai" },
+    "plateType": { "id": 14, "code": "PRIVATE", "name": "Private" },
+    "plateCode": { "id": 27, "code": "A", "name": "A" },
     "expectedPrice": 25000,
     "description": "Single digit... just kidding, clean 5-digit plate, no accidents.",
     "images": [{ "id": 88, "fileName": "...", "filePath": "..." }],

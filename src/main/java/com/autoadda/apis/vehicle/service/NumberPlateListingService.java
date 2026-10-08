@@ -19,5 +19,5 @@ public interface NumberPlateListingService {
 
     GenericResponse getMyListings(Integer userId);
 
-    GenericResponse browseListings(String emirate, String category, BigDecimal minPrice, BigDecimal maxPrice);
+    GenericResponse browseListings(Long plateSourceId, Long plateTypeId, Long plateCodeId, BigDecimal minPrice, BigDecimal maxPrice);
 }
