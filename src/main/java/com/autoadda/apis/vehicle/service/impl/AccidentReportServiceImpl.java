@@ -271,7 +271,12 @@ public class AccidentReportServiceImpl implements AccidentReportService {
                 for (Long imageId : request.getAccidentImageIds()) {
                     mediaFileRepository.findById(imageId).ifPresent(accidentImages::add);
                 }
-                accidentReport.setAccidentImages(accidentImages);
+                // accidentImages has orphanRemoval: replace the contents of the managed collection, not the collection itself
+                if (accidentReport.getAccidentImages() == null) {
+                    accidentReport.setAccidentImages(new ArrayList<>());
+                }
+                accidentReport.getAccidentImages().clear();
+                accidentReport.getAccidentImages().addAll(accidentImages);
             }
 
             // Update status if provided

@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -61,7 +62,15 @@ public class NumberPlateListingMapper {
         listing.setExpectedPrice(request.getExpectedPrice());
         listing.setDescription(request.getDescription());
         if (request.getImageIds() != null) {
-            listing.setImages(resolveImages(request.getImageIds()));
+            // images has orphanRemoval: replace the contents of the managed collection, never the collection itself
+            List<MediaFile> images = resolveImages(request.getImageIds());
+            if (listing.getImages() == null) {
+                listing.setImages(new ArrayList<>());
+            }
+            listing.getImages().clear();
+            if (images != null) {
+                listing.getImages().addAll(images);
+            }
         }
     }
 

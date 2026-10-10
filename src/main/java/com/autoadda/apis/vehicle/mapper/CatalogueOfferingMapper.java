@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -46,7 +47,15 @@ public class CatalogueOfferingMapper {
         offering.setIndicativePrice(request.getIndicativePrice());
         offering.setDescription(request.getDescription());
         if (request.getImageIds() != null) {
-            offering.setImages(resolveImages(request.getImageIds()));
+            // images has orphanRemoval: replace the contents of the managed collection, never the collection itself
+            List<MediaFile> images = resolveImages(request.getImageIds());
+            if (offering.getImages() == null) {
+                offering.setImages(new ArrayList<>());
+            }
+            offering.getImages().clear();
+            if (images != null) {
+                offering.getImages().addAll(images);
+            }
         }
         if (request.getStatus() != null && !request.getStatus().isBlank()) {
             offering.setStatus(parseStatus(request.getStatus()));
