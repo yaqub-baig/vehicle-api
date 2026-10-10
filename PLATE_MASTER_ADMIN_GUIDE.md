@@ -26,6 +26,9 @@ The initial data (7 sources, 61 types, 148 codes) is seeded by
 `migrations/2026-10-08_plate_master_seed_and_listing_backfill.sql`. The admin panel maintains it
 from there.
 
+Two fields drive the **plate preview** the frontend draws (see *Plate preview images and
+colours* below): an image on each **source** and a colour on each **colour code**.
+
 Number plate listings store the **ids** of the source/type/code, not their text. Renaming a
 `code` or `name` is therefore safe — existing listings pick up the new label automatically.
 
@@ -84,7 +87,7 @@ const handle = async (response) => {
 // TREE (read-only, everything active in one call)
 // ============================================
 
-// [{ id, code, name, plateTypes: [{ id, code, name, plateCodes: [{ id, code }] }] }]
+// [{ id, code, name, image, plateTypes: [{ id, code, name, plateCodes: [{ id, code, colorHex }] }] }]
 export const getPlateMasterTree = () => fetch(`${SOURCES_URL}/tree`).then(handle);
 
 // ============================================
@@ -95,7 +98,7 @@ export const listPlateSources = () => fetch(SOURCES_URL).then(handle);
 
 export const getPlateSource = (id) => fetch(`${SOURCES_URL}/${id}`).then(handle);
 
-// data: { code, name, displayOrder }
+// data: { code, name, displayOrder, imageId }
 export const createPlateSource = (data) =>
   fetch(SOURCES_URL, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(data) }).then(handle);
 
@@ -133,7 +136,7 @@ export const listPlateCodes = (plateTypeId) =>
 
 export const getPlateCode = (id) => fetch(`${CODES_URL}/${id}`).then(handle);
 
-// data: { code, plateTypeId, displayOrder }
+// data: { code, plateTypeId, displayOrder, colorHex }
 export const createPlateCode = (data) =>
   fetch(CODES_URL, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(data) }).then(handle);
 
@@ -154,8 +157,8 @@ export const deletePlateCode = (id) => fetch(`${CODES_URL}/${id}`, { method: 'DE
 | GET | `/tree` | — | all **active** sources → types → codes, nested |
 | GET | `/` | — | active sources, sorted by `displayOrder` then `id` |
 | GET | `/{id}` | — | returns the row even if inactive |
-| POST | `/` | `{ code*, name*, displayOrder }` | 409 if `code` already exists |
-| PUT | `/{id}` | `{ code*, name*, displayOrder }` | full replace (see below) |
+| POST | `/` | `{ code*, name*, displayOrder, imageId }` | 409 if `code` already exists |
+| PUT | `/{id}` | `{ code*, name*, displayOrder, imageId }` | full replace (see below) |
 | DELETE | `/{id}` | — | soft delete (`isActive = false`) |
 
 ### Plate types — `/plate-types`
@@ -174,11 +177,44 @@ export const deletePlateCode = (id) => fetch(`${CODES_URL}/${id}`, { method: 'DE
 |---|---|---|---|
 | GET | `/?plateTypeId=` | — | active codes, optionally for one type |
 | GET | `/{id}` | — | includes the nested `plateType` → `plateSource` |
-| POST | `/` | `{ code*, plateTypeId*, displayOrder }` | 409 if `code` exists under that type |
-| PUT | `/{id}` | `{ code*, plateTypeId*, displayOrder }` | full replace |
+| POST | `/` | `{ code*, plateTypeId*, displayOrder, colorHex }` | 409 if `code` exists under that type |
+| PUT | `/{id}` | `{ code*, plateTypeId*, displayOrder, colorHex }` | full replace |
 | DELETE | `/{id}` | — | soft delete |
 
 `*` = required. `code` columns hold up to 30 characters, `name` up to 150.
+`imageId` is a MediaFile id from `POST /mediafiles/upload`; an unknown id returns 404.
+`colorHex` must look like `#1B7F3B`, otherwise 400.
+
+---
+
+## Plate preview images and colours
+
+The frontend draws each plate preview from two things:
+
+| Field | Set on | Meaning |
+|---|---|---|
+| `image` (`imageId` on write) | **plate source** | One rectangular PNG template per emirate. The image changes **only** when the emirate changes. |
+| `colorHex` | **plate code** | Set only for colour codes (GREEN, RED, ORANGE, ...). The frontend fills the plate with this colour. Leave it empty for letter/number codes (A, 1, 50), which are printed on the plate as text instead. |
+
+**Preparing the emirate PNG**
+- One plate rectangle per emirate, without any code or number on it.
+- The **plate body must be transparent**. Only the border, emirate logo and Arabic/English text
+  are opaque. The frontend paints the selected colour behind the image, so an opaque white body
+  would hide it.
+- Export at about 3× the size it's shown at, so it stays sharp on phones.
+
+**Uploading / replacing an emirate image**
+1. `POST /mediafiles/upload` with the PNG → take `body[0].id`.
+2. `PUT /plate-sources/{id}` with the full source **plus** `imageId`. PUT is a full replace, so
+   always resend the current `imageId` when editing other fields, or the image is removed.
+
+**Colours**
+- `migrations/2026-10-10_plate_code_colors.sql` gives the 36 seeded colour codes a starting hex
+  value (`WHITE`, `GREY`, `GREEN`, `DARK_GREEN`, `RED`, `BLUE`, `YELLOW`, `BLACK`, `ORANGE`,
+  `BROWN`; `WHITE&GREEN` gets green). Adjust any of them with `PUT /plate-codes/{id}`.
+- `CLASSIC` and `TOWER` are treated as text codes and have no colour.
+- When adding a new colour code, set `colorHex`; when adding a letter/number code, leave it out.
+- In the admin form, show a colour picker for `colorHex` and a small swatch in the code list.
 
 ---
 
@@ -221,6 +257,7 @@ has to be reactivated directly in the database (`UPDATE plate_type SET is_active
 
 1. **Plate sources** — table of sources (code, name, display order) with add / edit / delete.
    Clicking a row opens its types.
+   Show the emirate image as a thumbnail with an upload/replace button.
 2. **Plate types** for a source — `GET /plate-types?plateSourceId={id}`. Add/edit form with the
    source fixed (not editable). Show a "No codes" badge for types whose code list is empty.
 3. **Plate codes** for a type — `GET /plate-codes?plateTypeId={id}`. Codes are short, so a

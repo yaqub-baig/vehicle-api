@@ -31,6 +31,11 @@ public class PlateCode {
     @JoinColumn(name = "plate_type_id", nullable = false)
     private PlateType plateType;
 
+    // Set for colour codes (GREEN, RED, ...): the plate body colour. Null for text codes (A, 1, ...),
+    // which are printed on the plate instead.
+    @Column(name = "color_hex", length = 7)
+    private String colorHex;
+
     @Column(name = "display_order")
     private Integer displayOrder;
 

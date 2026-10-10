@@ -13,6 +13,7 @@ public class PlateCodeResponse {
 
     private Long id;
     private String code;
+    private String colorHex;
     private Integer displayOrder;
     private Boolean isActive;
     private PlateTypeResponse plateType;

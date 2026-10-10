@@ -26,7 +26,7 @@ const INTERESTS_URL = `${API_BASE_URL}/number-plate-interests`;
 // ============================================
 
 // Full source -> type -> code tree in one call, no auth header required.
-// body: [{ id, code, name, plateTypes: [{ id, code, name, plateCodes: [{ id, code }] }] }]
+// body: [{ id, code, name, image, plateTypes: [{ id, code, name, plateCodes: [{ id, code, colorHex }] }] }]
 // A type with plateCodes: [] takes no code - hide the code dropdown and send plateCodeId: null.
 export const getPlateMasterTree = async () => {
   const response = await fetch(`${API_BASE_URL}/plate-sources/tree`);
@@ -181,6 +181,61 @@ export const getInterestsForListing = async (userId, listingId) => {
 
 ---
 
+## Plate preview
+
+Draw a preview of the plate wherever a plate is shown (create form, listing cards, detail page).
+Everything needed comes with the data you already have:
+
+| Where | Image | Colour | Code |
+|---|---|---|---|
+| Create/edit form (from the tree) | `source.image.filePath` | `code.colorHex` | `code.code` |
+| Listing response | `plateSource.image.filePath` | `plateCode.colorHex` | `plateCode.code` |
+
+Rules:
+- **The image depends only on the emirate.** Swap it when the source changes; type and code never
+  change it.
+- **Colour code** (`colorHex` is set): fill the plate with `colorHex`, print only the plate number.
+- **Text code** (`colorHex` is null, e.g. `A`, `50`): white plate, print the code and the number.
+- **No code** (type has no codes, or none picked yet): white plate, print only the number.
+- **No image** on the source (not uploaded yet): fall back to a plain rectangle with a border.
+
+The emirate PNG has a transparent plate body, so paint the colour **behind** it:
+
+```jsx
+// src/components/PlatePreview.jsx
+const PlatePreview = ({ image, colorHex, code, plateNumber }) => {
+  const isColorCode = !!colorHex;
+  return (
+    <div style={{
+      position: 'relative', aspectRatio: '4.5 / 1', width: '100%', maxWidth: 360,
+      background: colorHex || '#FFFFFF', border: image ? 'none' : '2px solid #000', borderRadius: 6
+    }}>
+      {image && (
+        <img src={`${API_BASE_URL}/${image.filePath}`} alt=""
+             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+      )}
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', gap: '0.6em', fontWeight: 700, fontSize: 'min(8vw, 40px)'
+      }}>
+        {!isColorCode && code && <span>{code}</span>}
+        <span>{plateNumber}</span>
+      </div>
+    </div>
+  );
+};
+
+// From a listing:
+// <PlatePreview image={l.plateSource?.image} colorHex={l.plateCode?.colorHex}
+//               code={l.plateCode?.code} plateNumber={l.plateNumber} />
+```
+
+Adjust how `image.filePath` becomes a URL to however the app already displays `MediaFile`
+images (e.g. listing photos). Text position and font size are a frontend choice; tune them
+per emirate if the templates need it.
+
+---
+
 ## Endpoint Reference
 
 ### Plate master data — `/plate-sources`, `/plate-types`, `/plate-codes`
@@ -247,9 +302,9 @@ Create/update bodies: `{ code, name, displayOrder }` for sources, `{ code, name,
     "userId": 101,
     "sellerName": "Ali Raza",
     "plateNumber": "A 12345",
-    "plateSource": { "id": 2, "code": "DUBAI", "name": "Dubai" },
-    "plateType": { "id": 14, "code": "PRIVATE", "name": "Private" },
-    "plateCode": { "id": 27, "code": "A", "name": "A" },
+    "plateSource": { "id": 2, "code": "DUBAI", "name": "Dubai", "image": { "id": 301, "fileName": "...", "filePath": "..." }, "colorHex": null },
+    "plateType": { "id": 14, "code": "PRIVATE", "name": "Private", "image": null, "colorHex": null },
+    "plateCode": { "id": 27, "code": "A", "name": "A", "image": null, "colorHex": null },
     "expectedPrice": 25000,
     "description": "Single digit... just kidding, clean 5-digit plate, no accidents.",
     "images": [{ "id": 88, "fileName": "...", "filePath": "..." }],
