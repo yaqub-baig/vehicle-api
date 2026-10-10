@@ -29,6 +29,12 @@ public class PlateSource {
     @Column(nullable = false, length = 150)
     private String name;
 
+    // Rectangular plate template for this emirate (transparent plate body). The frontend fills
+    // the body with the selected code's colour and overlays the code/number text.
+    @ManyToOne
+    @JoinColumn(name = "image_id")
+    private MediaFile image;
+
     @Column(name = "display_order")
     private Integer displayOrder;
 

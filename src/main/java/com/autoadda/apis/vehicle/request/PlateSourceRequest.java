@@ -17,4 +17,7 @@ public class PlateSourceRequest {
     private String name;
 
     private Integer displayOrder;
+
+    // Optional. MediaFile id of the emirate's plate template PNG, from POST /mediafiles/upload.
+    private Long imageId;
 }

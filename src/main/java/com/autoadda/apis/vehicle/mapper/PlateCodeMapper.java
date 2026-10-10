@@ -21,6 +21,7 @@ public class PlateCodeMapper {
         return PlateCode.builder()
                 .code(request.getCode())
                 .plateType(resolvePlateType(request.getPlateTypeId()))
+                .colorHex(request.getColorHex())
                 .displayOrder(request.getDisplayOrder())
                 .isActive(true)
                 .build();
@@ -29,6 +30,7 @@ public class PlateCodeMapper {
     public void applyUpdate(PlateCode entity, PlateCodeRequest request) {
         entity.setCode(request.getCode());
         entity.setPlateType(resolvePlateType(request.getPlateTypeId()));
+        entity.setColorHex(request.getColorHex());
         entity.setDisplayOrder(request.getDisplayOrder());
     }
 
@@ -39,6 +41,7 @@ public class PlateCodeMapper {
         return PlateCodeResponse.builder()
                 .id(entity.getId())
                 .code(entity.getCode())
+                .colorHex(entity.getColorHex())
                 .displayOrder(entity.getDisplayOrder())
                 .isActive(entity.getIsActive())
                 .plateType(plateTypeMapper.toResponse(entity.getPlateType()))
@@ -54,6 +57,7 @@ public class PlateCodeMapper {
                 .id(entity.getId())
                 .code(entity.getCode())
                 .name(entity.getCode())
+                .colorHex(entity.getColorHex())
                 .build();
     }
 
