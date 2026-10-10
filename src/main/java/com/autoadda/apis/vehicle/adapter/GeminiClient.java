@@ -10,13 +10,15 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -62,13 +64,20 @@ public class GeminiClient {
         }
         parts.add ( Map.of ( "text", prompt ) );
 
+        Map<String, Object> generationConfig = new HashMap<> ( );
+        generationConfig.put ( "temperature", 0 );
+        generationConfig.put ( "responseMimeType", "application/json" );
+        generationConfig.put ( "responseSchema", responseSchema );
+        // Thinking adds a long delay and is not needed to read printed text; 0 turns it off on flash models
+        if ( properties.getThinkingBudget ( ) != null ) {
+            generationConfig.put ( "thinkingConfig", Map.of ( "thinkingBudget", properties.getThinkingBudget ( ) ) );
+        }
+
         Map<String, Object> body = Map.of (
                 "contents", List.of ( Map.of ( "role", "user", "parts", parts ) ),
-                "generationConfig", Map.of (
-                        "temperature", 0,
-                        "responseMimeType", "application/json",
-                        "responseSchema", responseSchema ) );
+                "generationConfig", generationConfig );
 
+        long startedAt = System.currentTimeMillis ( );
         JsonNode response;
         try {
             response = restClient.post ( )
@@ -81,12 +90,28 @@ public class GeminiClient {
         } catch ( RestClientResponseException ex ) {
             log.error ( "Gemini request failed: HTTP {} {}", ex.getStatusCode ( ).value ( ), ex.getResponseBodyAsString ( ) );
             throw new DocumentExtractionException ( "Could not read the document, please fill the form manually", ex );
-        } catch ( ResourceAccessException ex ) {
-            log.error ( "Gemini request failed: {}", ex.getMessage ( ) );
-            throw new DocumentExtractionException ( "Document reading timed out, please try again", ex );
+        } catch ( RestClientException ex ) {
+            // A read timeout can surface as ResourceAccessException or, while reading the body, as a plain RestClientException
+            long elapsedMs = System.currentTimeMillis ( ) - startedAt;
+            if ( isTimeout ( ex ) ) {
+                log.error ( "Gemini request timed out after {} ms", elapsedMs );
+                throw new DocumentExtractionException ( "Document reading timed out, please try again", ex );
+            }
+            log.error ( "Gemini request failed after {} ms: {}", elapsedMs, ex.getMessage ( ) );
+            throw new DocumentExtractionException ( "Could not read the document, please fill the form manually", ex );
         }
 
+        log.info ( "Gemini extraction took {} ms", System.currentTimeMillis ( ) - startedAt );
         return parseResponse ( response );
+    }
+
+    private static boolean isTimeout(Throwable ex) {
+        for ( Throwable t = ex; t != null; t = t.getCause ( ) ) {
+            if ( t instanceof SocketTimeoutException ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private JsonNode parseResponse(JsonNode response) {

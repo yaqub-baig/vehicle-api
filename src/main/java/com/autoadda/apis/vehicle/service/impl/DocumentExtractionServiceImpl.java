@@ -14,6 +14,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -31,6 +42,9 @@ import java.util.Set;
 public class DocumentExtractionServiceImpl implements DocumentExtractionService {
 
     private static final long MAX_FILE_SIZE = 10L * 1024 * 1024;
+    private static final int MAX_IMAGE_SIDE = 2000;
+    private static final int MAX_UNRESIZED_BYTES = 1024 * 1024;
+    private static final float JPEG_QUALITY = 0.85f;
     private static final Set<String> ALLOWED_TYPES = Set.of (
             "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf" );
     private static final Map<String, String> TYPE_BY_EXTENSION = Map.of (
@@ -83,11 +97,69 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
         if ( mimeType == null ) {
             throw new InvalidInputException ( "The '" + partName + "' file must be JPEG, PNG, WEBP, HEIC or PDF" );
         }
+        byte[] data;
         try {
-            return new GeminiClient.InlineFile ( file.getBytes ( ), mimeType );
+            data = file.getBytes ( );
         } catch ( IOException ex ) {
             throw new InvalidInputException ( "Could not read the '" + partName + "' file" );
         }
+        return shrinkIfLarge ( data, mimeType );
+    }
+
+    /**
+     * Phone photos are often 4000px+ and several MB; Gemini doesn't need that to read the text and the
+     * upload makes the call slow. Images larger than MAX_IMAGE_SIDE are resized and re-encoded as JPEG.
+     * Anything ImageIO can't decode (HEIC, PDF, some WEBP) is sent unchanged.
+     */
+    private static GeminiClient.InlineFile shrinkIfLarge(byte[] data, String mimeType) {
+        if ( !mimeType.startsWith ( "image/" ) ) {
+            return new GeminiClient.InlineFile ( data, mimeType );
+        }
+        try {
+            BufferedImage source = ImageIO.read ( new ByteArrayInputStream ( data ) );
+            if ( source == null ) {
+                return new GeminiClient.InlineFile ( data, mimeType );
+            }
+            int longest = Math.max ( source.getWidth ( ), source.getHeight ( ) );
+            if ( longest <= MAX_IMAGE_SIDE && data.length <= MAX_UNRESIZED_BYTES ) {
+                return new GeminiClient.InlineFile ( data, mimeType );
+            }
+
+            double scale = Math.min ( 1.0, (double) MAX_IMAGE_SIDE / longest );
+            int width = Math.max ( 1, (int) Math.round ( source.getWidth ( ) * scale ) );
+            int height = Math.max ( 1, (int) Math.round ( source.getHeight ( ) * scale ) );
+            BufferedImage resized = new BufferedImage ( width, height, BufferedImage.TYPE_INT_RGB );
+            Graphics2D g = resized.createGraphics ( );
+            g.setColor ( Color.WHITE );
+            g.fillRect ( 0, 0, width, height );
+            g.setRenderingHint ( RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR );
+            g.setRenderingHint ( RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY );
+            g.drawImage ( source, 0, 0, width, height, null );
+            g.dispose ( );
+
+            byte[] jpeg = encodeJpeg ( resized );
+            log.info ( "Resized document image {}x{} ({} KB) -> {}x{} ({} KB)", source.getWidth ( ), source.getHeight ( ),
+                    data.length / 1024, width, height, jpeg.length / 1024 );
+            return new GeminiClient.InlineFile ( jpeg, "image/jpeg" );
+        } catch ( IOException | RuntimeException ex ) {
+            log.warn ( "Could not resize document image, sending original: {}", ex.getMessage ( ) );
+            return new GeminiClient.InlineFile ( data, mimeType );
+        }
+    }
+
+    private static byte[] encodeJpeg(BufferedImage image) throws IOException {
+        ImageWriter writer = ImageIO.getImageWritersByFormatName ( "jpeg" ).next ( );
+        ImageWriteParam param = writer.getDefaultWriteParam ( );
+        param.setCompressionMode ( ImageWriteParam.MODE_EXPLICIT );
+        param.setCompressionQuality ( JPEG_QUALITY );
+        ByteArrayOutputStream out = new ByteArrayOutputStream ( );
+        try ( ImageOutputStream ios = ImageIO.createImageOutputStream ( out ) ) {
+            writer.setOutput ( ios );
+            writer.write ( null, new IIOImage ( image, null, null ), param );
+        } finally {
+            writer.dispose ( );
+        }
+        return out.toByteArray ( );
     }
 
     private static String resolveMimeType(MultipartFile file) {

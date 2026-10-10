@@ -14,7 +14,8 @@ Supported document types: `MULKIYA` (UAE vehicle registration card). More types 
 | `back`  | no       | Back of the card (send it — chassis, engine, weights and passengers are printed on the back) |
 
 - Allowed files: JPEG, PNG, WEBP, HEIC, PDF. Max 10MB each.
-- A call takes about 3–15 seconds. Show a loader, and don't fire it again while one is running.
+- A call usually takes about 3–10 seconds. Show a loader, and don't fire it again while one is running.
+- The server shrinks large photos to 2000px before sending them, so full-size camera photos are fine. Compressing on the device first (to about 2000px, JPEG) makes the upload faster on slow networks.
 
 ```js
 const form = new FormData();
@@ -123,4 +124,4 @@ export GEMINI_API_KEY=...            # or add it to the pm2 ecosystem env
 pm2 restart vehicle-api --update-env
 ```
 
-Optional: set `GEMINI_MODEL` to change the model (default `gemini-2.5-flash`).
+Optional: `GEMINI_MODEL` (default `gemini-2.5-flash`), `GEMINI_TIMEOUT_SECONDS` (default 90), `GEMINI_THINKING_BUDGET` (default 0 = thinking off, which keeps calls fast).
