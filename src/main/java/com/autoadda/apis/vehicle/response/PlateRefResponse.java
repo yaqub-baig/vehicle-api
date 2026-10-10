@@ -7,8 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 // Compact {id, code, name} reference to a plate master row, embedded in listing responses.
-// image is set only on the source ref and colorHex only on the code ref, so the frontend can
-// draw the plate preview without extra calls.
+// image is set on the source ref (emirate template) and on the code ref when that code overrides
+// it; colorHex only on the code ref. Lets the frontend draw the plate preview without extra calls.
 @Data
 @Builder
 @NoArgsConstructor

@@ -86,6 +86,7 @@ public class PlateSourceService {
                                                         .id(code.getId())
                                                         .code(code.getCode())
                                                         .colorHex(code.getColorHex())
+                                                        .image(code.getImage())
                                                         .build())
                                                 .toList())
                                         .build())

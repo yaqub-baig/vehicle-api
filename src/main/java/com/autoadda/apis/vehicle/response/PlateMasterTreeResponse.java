@@ -40,5 +40,7 @@ public class PlateMasterTreeResponse {
         private Long id;
         private String code;
         private String colorHex;
+        // Overrides the source image when set.
+        private MediaFile image;
     }
 }
