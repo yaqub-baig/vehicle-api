@@ -26,7 +26,7 @@ const INTERESTS_URL = `${API_BASE_URL}/number-plate-interests`;
 // ============================================
 
 // Full source -> type -> code tree in one call, no auth header required.
-// body: [{ id, code, name, image, plateTypes: [{ id, code, name, plateCodes: [{ id, code, colorHex }] }] }]
+// body: [{ id, code, name, image, plateTypes: [{ id, code, name, plateCodes: [{ id, code, colorHex, image }] }] }]
 // A type with plateCodes: [] takes no code - hide the code dropdown and send plateCodeId: null.
 export const getPlateMasterTree = async () => {
   const response = await fetch(`${API_BASE_URL}/plate-sources/tree`);
@@ -188,12 +188,13 @@ Everything needed comes with the data you already have:
 
 | Where | Image | Colour | Code |
 |---|---|---|---|
-| Create/edit form (from the tree) | `source.image.filePath` | `code.colorHex` | `code.code` |
-| Listing response | `plateSource.image.filePath` | `plateCode.colorHex` | `plateCode.code` |
+| Create/edit form (from the tree) | `(code.image ?? source.image).filePath` | `code.colorHex` | `code.code` |
+| Listing response | `(plateCode.image ?? plateSource.image).filePath` | `plateCode.colorHex` | `plateCode.code` |
 
 Rules:
-- **The image depends only on the emirate.** Swap it when the source changes; type and code never
-  change it.
+- **The image comes from the emirate**, unless the selected code has its own `image` (a contrast
+  version for some colours). Use `code.image ?? source.image`, so the image changes when the
+  emirate changes, or when a code with its own image is picked.
 - **Colour code** (`colorHex` is set): fill the plate with `colorHex`, print only the plate number.
 - **Text code** (`colorHex` is null, e.g. `A`, `50`): white plate, print the code and the number.
 - **No code** (type has no codes, or none picked yet): white plate, print only the number.
@@ -226,7 +227,7 @@ const PlatePreview = ({ image, colorHex, code, plateNumber }) => {
 };
 
 // From a listing:
-// <PlatePreview image={l.plateSource?.image} colorHex={l.plateCode?.colorHex}
+// <PlatePreview image={l.plateCode?.image ?? l.plateSource?.image} colorHex={l.plateCode?.colorHex}
 //               code={l.plateCode?.code} plateNumber={l.plateNumber} />
 ```
 

@@ -27,7 +27,8 @@ The initial data (7 sources, 61 types, 148 codes) is seeded by
 from there.
 
 Two fields drive the **plate preview** the frontend draws (see *Plate preview images and
-colours* below): an image on each **source** and a colour on each **colour code**.
+colours* below): an image on each **source** (optionally overridden per code) and a colour
+on each **colour code**.
 
 Number plate listings store the **ids** of the source/type/code, not their text. Renaming a
 `code` or `name` is therefore safe — existing listings pick up the new label automatically.
@@ -87,7 +88,7 @@ const handle = async (response) => {
 // TREE (read-only, everything active in one call)
 // ============================================
 
-// [{ id, code, name, image, plateTypes: [{ id, code, name, plateCodes: [{ id, code, colorHex }] }] }]
+// [{ id, code, name, image, plateTypes: [{ id, code, name, plateCodes: [{ id, code, colorHex, image }] }] }]
 export const getPlateMasterTree = () => fetch(`${SOURCES_URL}/tree`).then(handle);
 
 // ============================================
@@ -136,7 +137,7 @@ export const listPlateCodes = (plateTypeId) =>
 
 export const getPlateCode = (id) => fetch(`${CODES_URL}/${id}`).then(handle);
 
-// data: { code, plateTypeId, displayOrder, colorHex }
+// data: { code, plateTypeId, displayOrder, colorHex, imageId }
 export const createPlateCode = (data) =>
   fetch(CODES_URL, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(data) }).then(handle);
 
@@ -177,8 +178,8 @@ export const deletePlateCode = (id) => fetch(`${CODES_URL}/${id}`, { method: 'DE
 |---|---|---|---|
 | GET | `/?plateTypeId=` | — | active codes, optionally for one type |
 | GET | `/{id}` | — | includes the nested `plateType` → `plateSource` |
-| POST | `/` | `{ code*, plateTypeId*, displayOrder, colorHex }` | 409 if `code` exists under that type |
-| PUT | `/{id}` | `{ code*, plateTypeId*, displayOrder, colorHex }` | full replace |
+| POST | `/` | `{ code*, plateTypeId*, displayOrder, colorHex, imageId }` | 409 if `code` exists under that type |
+| PUT | `/{id}` | `{ code*, plateTypeId*, displayOrder, colorHex, imageId }` | full replace |
 | DELETE | `/{id}` | — | soft delete |
 
 `*` = required. `code` columns hold up to 30 characters, `name` up to 150.
@@ -193,7 +194,8 @@ The frontend draws each plate preview from two things:
 
 | Field | Set on | Meaning |
 |---|---|---|
-| `image` (`imageId` on write) | **plate source** | One rectangular PNG template per emirate. The image changes **only** when the emirate changes. |
+| `image` (`imageId` on write) | **plate source** | One rectangular PNG template per emirate. This is the default image for every plate of that emirate. |
+| `image` (`imageId` on write) | **plate code** (optional) | Replaces the emirate image for that one code, e.g. a high-contrast template with light text and logo for a dark plate colour. Leave empty to use the emirate image. |
 | `colorHex` | **plate code** | Set only for colour codes (GREEN, RED, ORANGE, ...). The frontend fills the plate with this colour. Leave it empty for letter/number codes (A, 1, 50), which are printed on the plate as text instead. |
 
 **Preparing the emirate PNG**
@@ -207,6 +209,16 @@ The frontend draws each plate preview from two things:
 1. `POST /mediafiles/upload` with the PNG → take `body[0].id`.
 2. `PUT /plate-sources/{id}` with the full source **plus** `imageId`. PUT is a full replace, so
    always resend the current `imageId` when editing other fields, or the image is removed.
+
+**Code-level image override (contrast images)**
+- Use it only where the emirate image doesn't work on that code's colour, typically dark colours
+  (BLACK, DARK_GREEN, BLUE, RED) where black text/logo would be unreadable.
+- Prepare it exactly like the emirate PNG: same size and layout, **transparent plate body**, just
+  with contrasting border/logo/text colours. The code's `colorHex` is still painted behind it.
+- Upload with `POST /mediafiles/upload`, then `PUT /plate-codes/{id}` with the full code
+  (`code`, `plateTypeId`, `colorHex`, `displayOrder`) **plus** `imageId`. Same full-replace rule:
+  resend `imageId` on every edit, and send `imageId: null` to go back to the emirate image.
+- The frontend uses `code.image` when set, otherwise `source.image`.
 
 **Colours**
 - `migrations/2026-10-10_plate_code_colors.sql` gives the 36 seeded colour codes a starting hex
@@ -261,7 +273,8 @@ has to be reactivated directly in the database (`UPDATE plate_type SET is_active
 2. **Plate types** for a source — `GET /plate-types?plateSourceId={id}`. Add/edit form with the
    source fixed (not editable). Show a "No codes" badge for types whose code list is empty.
 3. **Plate codes** for a type — `GET /plate-codes?plateTypeId={id}`. Codes are short, so a
-   chip/tag list with inline add and remove works well.
+   chip/tag list with inline add and remove works well. In the code editor, show the colour picker
+   and an optional "Override image" upload, with a thumbnail when one is set.
 
 Alternatively, build one tree view from `GET /plate-sources/tree` and call the individual
 create/update/delete endpoints from it, re-fetching the tree after each change.

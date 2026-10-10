@@ -23,4 +23,8 @@ public class PlateCodeRequest {
     // Optional. Set only for colour codes, e.g. "#1B7F3B"; leave null for text codes.
     @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "Colour must be a hex value like #1B7F3B")
     private String colorHex;
+
+    // Optional. MediaFile id of an image that replaces the source's plate image for this code
+    // (e.g. a contrast version for a dark colour). Leave null to use the source's image.
+    private Long imageId;
 }

@@ -36,6 +36,12 @@ public class PlateCode {
     @Column(name = "color_hex", length = 7)
     private String colorHex;
 
+    // Optional override of the source's plate image for this code, e.g. a higher-contrast template
+    // for a dark plate colour. Null means use the plate source's image.
+    @ManyToOne
+    @JoinColumn(name = "image_id")
+    private MediaFile image;
+
     @Column(name = "display_order")
     private Integer displayOrder;
 

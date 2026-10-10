@@ -1,6 +1,8 @@
 package com.autoadda.apis.vehicle.mapper;
 
+import com.autoadda.apis.vehicle.dao.MediaFileRepository;
 import com.autoadda.apis.vehicle.dao.PlateTypeRepository;
+import com.autoadda.apis.vehicle.entity.MediaFile;
 import com.autoadda.apis.vehicle.entity.PlateCode;
 import com.autoadda.apis.vehicle.entity.PlateType;
 import com.autoadda.apis.vehicle.exception.ResourceNotFoundException;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class PlateCodeMapper {
 
     private final PlateTypeRepository plateTypeRepository;
+    private final MediaFileRepository mediaFileRepository;
     private final PlateTypeMapper plateTypeMapper;
 
     public PlateCode toEntity(PlateCodeRequest request) {
@@ -22,6 +25,7 @@ public class PlateCodeMapper {
                 .code(request.getCode())
                 .plateType(resolvePlateType(request.getPlateTypeId()))
                 .colorHex(request.getColorHex())
+                .image(resolveImage(request.getImageId()))
                 .displayOrder(request.getDisplayOrder())
                 .isActive(true)
                 .build();
@@ -31,6 +35,7 @@ public class PlateCodeMapper {
         entity.setCode(request.getCode());
         entity.setPlateType(resolvePlateType(request.getPlateTypeId()));
         entity.setColorHex(request.getColorHex());
+        entity.setImage(resolveImage(request.getImageId()));
         entity.setDisplayOrder(request.getDisplayOrder());
     }
 
@@ -42,6 +47,7 @@ public class PlateCodeMapper {
                 .id(entity.getId())
                 .code(entity.getCode())
                 .colorHex(entity.getColorHex())
+                .image(entity.getImage())
                 .displayOrder(entity.getDisplayOrder())
                 .isActive(entity.getIsActive())
                 .plateType(plateTypeMapper.toResponse(entity.getPlateType()))
@@ -58,7 +64,16 @@ public class PlateCodeMapper {
                 .code(entity.getCode())
                 .name(entity.getCode())
                 .colorHex(entity.getColorHex())
+                .image(entity.getImage())
                 .build();
+    }
+
+    private MediaFile resolveImage(Long imageId) {
+        if (imageId == null) {
+            return null;
+        }
+        return mediaFileRepository.findById(imageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plate image not found"));
     }
 
     private PlateType resolvePlateType(Long plateTypeId) {
