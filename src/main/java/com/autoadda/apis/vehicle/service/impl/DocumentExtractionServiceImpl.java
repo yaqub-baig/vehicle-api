@@ -1,15 +1,13 @@
 package com.autoadda.apis.vehicle.service.impl;
 
-import com.autoadda.apis.vehicle.adapter.GeminiClient;
+import com.autoadda.apis.vehicle.adapter.vision.InlineFile;
 import com.autoadda.apis.vehicle.enums.ExtractionDocumentType;
-import com.autoadda.apis.vehicle.exception.DocumentExtractionException;
 import com.autoadda.apis.vehicle.exception.InvalidInputException;
 import com.autoadda.apis.vehicle.response.DocumentExtractionResponse;
 import com.autoadda.apis.vehicle.response.GenericResponse;
 import com.autoadda.apis.vehicle.service.DocumentExtractionService;
+import com.autoadda.apis.vehicle.service.extraction.DocumentExtractionRouter;
 import com.autoadda.apis.vehicle.service.extraction.ExtractionSpec;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,7 +32,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Sends document images to Gemini and returns the extracted fields for form auto-fill.
+ * Sends document images to the LLM providers (via DocumentExtractionRouter) and returns the extracted fields for form auto-fill.
  * Images are not stored.
  */
 @Slf4j
@@ -51,11 +49,11 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
             "jpg", "image/jpeg", "jpeg", "image/jpeg", "png", "image/png", "webp", "image/webp",
             "heic", "image/heic", "heif", "image/heif", "pdf", "application/pdf" );
 
-    private final GeminiClient geminiClient;
+    private final DocumentExtractionRouter router;
     private final Map<ExtractionDocumentType, ExtractionSpec> specs = new EnumMap<> ( ExtractionDocumentType.class );
 
-    public DocumentExtractionServiceImpl(GeminiClient geminiClient, List<ExtractionSpec> specList) {
-        this.geminiClient = geminiClient;
+    public DocumentExtractionServiceImpl(DocumentExtractionRouter router, List<ExtractionSpec> specList) {
+        this.router = router;
         specList.forEach ( spec -> specs.put ( spec.documentType ( ), spec ) );
     }
 
@@ -67,26 +65,24 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
             throw new InvalidInputException ( "Unsupported document type: " + type );
         }
 
-        List<GeminiClient.InlineFile> files = new ArrayList<> ( );
+        List<InlineFile> files = new ArrayList<> ( );
         files.add ( toInlineFile ( front, "front" ) );
         if ( back != null && !back.isEmpty ( ) ) {
             files.add ( toInlineFile ( back, "back" ) );
         }
 
-        JsonNode result = geminiClient.generateJson ( files, spec.prompt ( ), spec.responseSchema ( ) );
-        if ( !(result instanceof ObjectNode fields) ) {
-            throw new DocumentExtractionException ( "Could not read the document, please fill the form manually" );
-        }
+        DocumentExtractionRouter.Result result = router.extract ( files, spec );
 
         DocumentExtractionResponse body = DocumentExtractionResponse.builder ( )
                 .documentType ( type )
-                .fields ( spec.postProcess ( fields ) )
+                .provider ( result.provider ( ) )
+                .fields ( spec.postProcess ( result.fields ( ) ) )
                 .build ( );
         return GenericResponse.builder ( ).status ( "success" ).code ( "200" )
                 .message ( "Document read successfully" ).body ( body ).build ( );
     }
 
-    private GeminiClient.InlineFile toInlineFile(MultipartFile file, String partName) {
+    private InlineFile toInlineFile(MultipartFile file, String partName) {
         if ( file == null || file.isEmpty ( ) ) {
             throw new InvalidInputException ( "The '" + partName + "' image is required" );
         }
@@ -111,18 +107,18 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
      * upload makes the call slow. Images larger than MAX_IMAGE_SIDE are resized and re-encoded as JPEG.
      * Anything ImageIO can't decode (HEIC, PDF, some WEBP) is sent unchanged.
      */
-    private static GeminiClient.InlineFile shrinkIfLarge(byte[] data, String mimeType) {
+    private static InlineFile shrinkIfLarge(byte[] data, String mimeType) {
         if ( !mimeType.startsWith ( "image/" ) ) {
-            return new GeminiClient.InlineFile ( data, mimeType );
+            return new InlineFile ( data, mimeType );
         }
         try {
             BufferedImage source = ImageIO.read ( new ByteArrayInputStream ( data ) );
             if ( source == null ) {
-                return new GeminiClient.InlineFile ( data, mimeType );
+                return new InlineFile ( data, mimeType );
             }
             int longest = Math.max ( source.getWidth ( ), source.getHeight ( ) );
             if ( longest <= MAX_IMAGE_SIDE && data.length <= MAX_UNRESIZED_BYTES ) {
-                return new GeminiClient.InlineFile ( data, mimeType );
+                return new InlineFile ( data, mimeType );
             }
 
             double scale = Math.min ( 1.0, (double) MAX_IMAGE_SIDE / longest );
@@ -140,10 +136,10 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
             byte[] jpeg = encodeJpeg ( resized );
             log.info ( "Resized document image {}x{} ({} KB) -> {}x{} ({} KB)", source.getWidth ( ), source.getHeight ( ),
                     data.length / 1024, width, height, jpeg.length / 1024 );
-            return new GeminiClient.InlineFile ( jpeg, "image/jpeg" );
+            return new InlineFile ( jpeg, "image/jpeg" );
         } catch ( IOException | RuntimeException ex ) {
             log.warn ( "Could not resize document image, sending original: {}", ex.getMessage ( ) );
-            return new GeminiClient.InlineFile ( data, mimeType );
+            return new InlineFile ( data, mimeType );
         }
     }
 

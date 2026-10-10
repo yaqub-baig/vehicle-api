@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,6 +29,10 @@ public class MulkiyaExtractionSpec implements ExtractionSpec {
 
     private static final Set<String> DATE_FIELDS = Set.of ( "regDate", "regExpiry", "insuExpiry" );
     private static final Set<String> UPPERCASE_FIELDS = Set.of ( "chassisNo", "engineNumber", "code" );
+    private static final Map<String, List<String>> CHOICE_FIELDS = Map.of (
+            "state", PLATE_SOURCE_CODES,
+            "vehicleTypeCategory", Arrays.stream ( VehicleTypeCategoryEnum.values ( ) ).map ( Enum::name ).toList ( ),
+            "policyType", Arrays.stream ( PolicyTypeEnum.values ( ) ).map ( Enum::name ).toList ( ) );
 
     private static final DateTimeFormatter OUTPUT_DATE = DateTimeFormatter.ofPattern ( "dd-MM-yyyy" );
     private static final List<DateTimeFormatter> INPUT_DATES = List.of (
@@ -81,8 +84,7 @@ public class MulkiyaExtractionSpec implements ExtractionSpec {
         properties.put ( "year", text ( "Model year, 4 digits" ) );
         properties.put ( "vehicleColor", text ( "Vehicle colour" ) );
         properties.put ( "vehicleType", text ( "Vehicle type as printed, e.g. Saloon, Station Wagon, Pick Up" ) );
-        properties.put ( "vehicleTypeCategory", choice ( "Registration / plate category",
-                Arrays.stream ( VehicleTypeCategoryEnum.values ( ) ).map ( Enum::name ).toList ( ) ) );
+        properties.put ( "vehicleTypeCategory", choice ( "Registration / plate category", CHOICE_FIELDS.get ( "vehicleTypeCategory" ) ) );
         properties.put ( "chassisNo", text ( "Chassis / VIN number" ) );
         properties.put ( "engineNumber", text ( "Engine number" ) );
         properties.put ( "origin", text ( "Country of origin" ) );
@@ -94,8 +96,7 @@ public class MulkiyaExtractionSpec implements ExtractionSpec {
         properties.put ( "insuExpiry", text ( "Insurance expiry date, dd-MM-yyyy" ) );
         properties.put ( "insuCompany", text ( "Insurance company" ) );
         properties.put ( "insuPolicy", text ( "Insurance policy number" ) );
-        properties.put ( "policyType", choice ( "Insurance policy type",
-                Arrays.stream ( PolicyTypeEnum.values ( ) ).map ( Enum::name ).toList ( ) ) );
+        properties.put ( "policyType", choice ( "Insurance policy type", CHOICE_FIELDS.get ( "policyType" ) ) );
 
         return Map.of (
                 "type", "OBJECT",
@@ -103,36 +104,48 @@ public class MulkiyaExtractionSpec implements ExtractionSpec {
                 "propertyOrdering", List.copyOf ( properties.keySet ( ) ) );
     }
 
+    /**
+     * Returns exactly the schema fields in schema order: missing ones become null, extra keys are dropped,
+     * and choice fields not in their allowed list become null (JSON-mode providers don't enforce the schema).
+     */
     @Override
+    @SuppressWarnings("unchecked")
     public ObjectNode postProcess(ObjectNode fields) {
-        List<String> names = new ArrayList<> ( );
-        fields.fieldNames ( ).forEachRemaining ( names::add );
-
-        for ( String name : names ) {
-            JsonNode value = fields.get ( name );
-            if ( value == null || value.isNull ( ) ) {
-                continue;
-            }
-            String text = value.asText ( ).trim ( );
-            if ( text.isEmpty ( ) || text.equalsIgnoreCase ( "null" ) ) {
-                fields.putNull ( name );
-                continue;
-            }
-            if ( DATE_FIELDS.contains ( name ) ) {
-                text = normalizeDate ( text );
-            } else if ( UPPERCASE_FIELDS.contains ( name ) ) {
-                text = text.toUpperCase ( Locale.ROOT );
-                if ( name.equals ( "chassisNo" ) ) {
-                    text = text.replaceAll ( "\\s+", "" );
-                }
-            }
+        Map<String, Object> schemaFields = (Map<String, Object>) responseSchema ( ).get ( "properties" );
+        ObjectNode cleaned = fields.objectNode ( );
+        for ( String name : schemaFields.keySet ( ) ) {
+            String text = clean ( name, fields.get ( name ) );
             if ( text == null ) {
-                fields.putNull ( name );
+                cleaned.putNull ( name );
             } else {
-                fields.put ( name, text );
+                cleaned.put ( name, text );
             }
         }
-        return fields;
+        return cleaned;
+    }
+
+    private static String clean(String name, JsonNode value) {
+        if ( value == null || value.isNull ( ) || value.isContainerNode ( ) ) {
+            return null;
+        }
+        String text = value.asText ( ).trim ( );
+        if ( text.isEmpty ( ) || text.equalsIgnoreCase ( "null" ) ) {
+            return null;
+        }
+        if ( DATE_FIELDS.contains ( name ) ) {
+            return normalizeDate ( text );
+        }
+        if ( CHOICE_FIELDS.containsKey ( name ) ) {
+            String code = text.toUpperCase ( Locale.ROOT ).replaceAll ( "[\\s-]+", "_" );
+            return CHOICE_FIELDS.get ( name ).contains ( code ) ? code : null;
+        }
+        if ( UPPERCASE_FIELDS.contains ( name ) ) {
+            text = text.toUpperCase ( Locale.ROOT );
+            if ( name.equals ( "chassisNo" ) ) {
+                text = text.replaceAll ( "\\s+", "" );
+            }
+        }
+        return text;
     }
 
     private static String normalizeDate(String value) {
