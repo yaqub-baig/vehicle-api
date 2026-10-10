@@ -1,7 +1,8 @@
-package com.autoadda.apis.vehicle.adapter;
+package com.autoadda.apis.vehicle.adapter.vision;
 
 import com.autoadda.apis.vehicle.config.GeminiProperties;
 import com.autoadda.apis.vehicle.exception.DocumentExtractionException;
+import com.autoadda.apis.vehicle.service.extraction.ExtractionSpec;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,29 +13,31 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 
-import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Calls Gemini generateContent with one or more files and a prompt, and asks for JSON
- * matching the given response schema.
+ * Google Gemini generateContent with inline files; the answer is constrained by the spec's response schema.
+ * Gemini also reads HEIC and PDF, which the other providers can't.
  */
 @Slf4j
 @Component
-public class GeminiClient {
+public class GeminiVisionProvider implements VisionProvider {
+
+    private static final Set<String> SUPPORTED_TYPES = Set.of (
+            "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf" );
 
     private final GeminiProperties properties;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
 
-    public GeminiClient(GeminiProperties properties, ObjectMapper objectMapper) {
+    public GeminiVisionProvider(GeminiProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory ( );
@@ -46,28 +49,35 @@ public class GeminiClient {
                 .build ( );
     }
 
-    /** A file to send inline: raw bytes plus its MIME type (image/jpeg, application/pdf, ...). */
-    public record InlineFile(byte[] data, String mimeType) {
+    @Override
+    public String name() {
+        return "gemini";
     }
 
-    public JsonNode generateJson(List<InlineFile> files, String prompt, Map<String, Object> responseSchema) {
-        if ( !StringUtils.hasText ( properties.getApiKey ( ) ) ) {
-            log.error ( "Gemini API key is not configured (set GEMINI_API_KEY)" );
-            throw new DocumentExtractionException ( "Document reading is not configured on the server" );
-        }
+    @Override
+    public boolean isConfigured() {
+        return StringUtils.hasText ( properties.getApiKey ( ) );
+    }
 
+    @Override
+    public boolean supports(String mimeType) {
+        return SUPPORTED_TYPES.contains ( mimeType );
+    }
+
+    @Override
+    public JsonNode extract(List<InlineFile> files, ExtractionSpec spec) {
         List<Map<String, Object>> parts = new ArrayList<> ( );
         for ( InlineFile file : files ) {
             parts.add ( Map.of ( "inlineData", Map.of (
                     "mimeType", file.mimeType ( ),
                     "data", Base64.getEncoder ( ).encodeToString ( file.data ( ) ) ) ) );
         }
-        parts.add ( Map.of ( "text", prompt ) );
+        parts.add ( Map.of ( "text", spec.prompt ( ) ) );
 
         Map<String, Object> generationConfig = new HashMap<> ( );
         generationConfig.put ( "temperature", 0 );
         generationConfig.put ( "responseMimeType", "application/json" );
-        generationConfig.put ( "responseSchema", responseSchema );
+        generationConfig.put ( "responseSchema", spec.responseSchema ( ) );
         // Thinking adds a long delay and is not needed to read printed text; 0 turns it off on flash models
         if ( properties.getThinkingBudget ( ) != null ) {
             generationConfig.put ( "thinkingConfig", Map.of ( "thinkingBudget", properties.getThinkingBudget ( ) ) );
@@ -87,41 +97,21 @@ public class GeminiClient {
                     .body ( body )
                     .retrieve ( )
                     .body ( JsonNode.class );
-        } catch ( RestClientResponseException ex ) {
-            log.error ( "Gemini request failed: HTTP {} {}", ex.getStatusCode ( ).value ( ), ex.getResponseBodyAsString ( ) );
-            throw new DocumentExtractionException ( "Could not read the document, please fill the form manually", ex );
         } catch ( RestClientException ex ) {
-            // A read timeout can surface as ResourceAccessException or, while reading the body, as a plain RestClientException
-            long elapsedMs = System.currentTimeMillis ( ) - startedAt;
-            if ( isTimeout ( ex ) ) {
-                log.error ( "Gemini request timed out after {} ms", elapsedMs );
-                throw new DocumentExtractionException ( "Document reading timed out, please try again", ex );
-            }
-            log.error ( "Gemini request failed after {} ms: {}", elapsedMs, ex.getMessage ( ) );
-            throw new DocumentExtractionException ( "Could not read the document, please fill the form manually", ex );
+            throw ProviderErrors.map ( name ( ), ex, System.currentTimeMillis ( ) - startedAt );
         }
 
-        log.info ( "Gemini extraction took {} ms", System.currentTimeMillis ( ) - startedAt );
+        log.info ( "gemini extraction took {} ms", System.currentTimeMillis ( ) - startedAt );
         return parseResponse ( response );
-    }
-
-    private static boolean isTimeout(Throwable ex) {
-        for ( Throwable t = ex; t != null; t = t.getCause ( ) ) {
-            if ( t instanceof SocketTimeoutException ) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private JsonNode parseResponse(JsonNode response) {
         if ( response == null ) {
-            throw new DocumentExtractionException ( "Could not read the document, please fill the form manually" );
+            throw new DocumentExtractionException ( "gemini returned an empty response" );
         }
         String blockReason = response.path ( "promptFeedback" ).path ( "blockReason" ).asText ( null );
         if ( blockReason != null ) {
-            log.warn ( "Gemini blocked the request: {}", blockReason );
-            throw new DocumentExtractionException ( "Could not read the document, please fill the form manually" );
+            throw new DocumentExtractionException ( "gemini blocked the request: " + blockReason );
         }
 
         JsonNode candidate = response.path ( "candidates" ).path ( 0 );
@@ -132,15 +122,14 @@ public class GeminiClient {
             }
         }
         if ( text.isEmpty ( ) ) {
-            log.warn ( "Gemini returned no text, finishReason={}", candidate.path ( "finishReason" ).asText ( ) );
-            throw new DocumentExtractionException ( "Could not read the document, please fill the form manually" );
+            throw new DocumentExtractionException ( "gemini returned no text, finishReason="
+                    + candidate.path ( "finishReason" ).asText ( ) );
         }
 
         try {
             return objectMapper.readTree ( text.toString ( ) );
         } catch ( JsonProcessingException ex ) {
-            log.warn ( "Gemini returned invalid JSON ({} chars)", text.length ( ) );
-            throw new DocumentExtractionException ( "Could not read the document, please fill the form manually", ex );
+            throw new DocumentExtractionException ( "gemini returned invalid JSON (" + text.length ( ) + " chars)", ex );
         }
     }
 }

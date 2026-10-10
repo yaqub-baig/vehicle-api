@@ -14,6 +14,8 @@ import lombok.NoArgsConstructor;
 public class DocumentExtractionResponse {
 
     private ExtractionDocumentType documentType;
+    /** Which LLM provider read the document (gemini, groq, mistral). */
+    private String provider;
     /** Extracted values keyed by form field name; a field is null when it could not be read. */
     private ObjectNode fields;
 }
