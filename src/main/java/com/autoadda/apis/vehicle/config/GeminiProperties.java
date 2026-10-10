@@ -16,5 +16,7 @@ public class GeminiProperties {
     private String apiKey;
     private String model = "gemini-2.5-flash";
     private String baseUrl = "https://generativelanguage.googleapis.com/v1beta";
-    private int timeoutSeconds = 60;
+    private int timeoutSeconds = 90;
+    /** Gemini thinking budget in tokens; 0 disables thinking (flash models). Leave empty to use the model default. */
+    private Integer thinkingBudget = 0;
 }
